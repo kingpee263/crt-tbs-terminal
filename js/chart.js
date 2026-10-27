@@ -1,26 +1,24 @@
 /**
- * Chart wrapper (v3):
- *  - Guarantees candlesticks always render (sanitizes & deduplicates timestamps,
- *    explicitly sizes the chart container, guards logical range bounds, and includes
- *    a built-in native Canvas candlestick fallback if the CDN is ever blocked).
- *  - Draws the TradingView-style BLUE & RED Position Tool (Red = Stop Loss zone,
- *    Blue = Take Profit zone with 50% TP1 + Breakeven divider) just like PDF 1 p.1, 4, 21–30.
+ * Institutional Candlestick Chart Renderer
+ *  - Authentic TradingView Pro dark palette (#131722 canvas, #089981 bull, #f23645 bear)
+ *  - Real-time current price line + live tick updates anchored to the right edge
+ *  - TradingView-style Blue & Red Long/Short Position Tool (Red = Stop Loss, Blue = TP1/TP2)
+ *  - Native Canvas candlestick fallback if CDN is unreachable
  */
 (function () {
   const T = window.CRTTime;
 
   const THEME = {
-    bg: '#080c14',
-    grid: 'rgba(148,163,184,0.07)',
-    text: '#94a3b8',
-    up: '#3b82f6',        // PDF 1 CRT Blue for bullish candles
-    down: '#e2e8f0',      // High-contrast crisp slate/white-edge for bearish candles
-    downFill: '#1e293b',
-    wickUp: '#60a5fa',
-    wickDown: '#94a3b8'
+    bg: '#131722',
+    grid: 'rgba(42, 46, 57, 0.55)',
+    border: '#2a2e39',
+    text: '#868993',
+    up: '#089981',
+    down: '#f23645',
+    wickUp: '#089981',
+    wickDown: '#f23645'
   };
 
-  // Deduplicate & sort candles strictly ascending by time (required by Lightweight Charts)
   function cleanCandles(raw) {
     if (!Array.isArray(raw) || !raw.length) return [];
     const sorted = raw
@@ -57,16 +55,16 @@
   }
 
   class CRTChart {
-    constructor(container, { title = '' } = {}) {
+    constructor(container, { title = '', onHover = null } = {}) {
       this.container = container;
       this.data = [];
       this.ann = null;
       this.granMs = 60000;
       this.decimals = 2;
+      this.onHover = onHover;
       container.innerHTML = '';
       container.style.position = 'relative';
 
-      // Dedicated inner mount div for LightweightCharts so overlay canvas never interferes with autoSize
       this.mount = document.createElement('div');
       Object.assign(this.mount.style, {
         position: 'absolute',
@@ -80,25 +78,55 @@
       this.hasLWC = typeof window.LightweightCharts !== 'undefined';
 
       if (this.hasLWC) {
-        const w = Math.max(container.clientWidth || 520, 300);
-        const h = Math.max(container.clientHeight || 390, 260);
+        const w = Math.max(container.clientWidth || 540, 300);
+        const h = Math.max(container.clientHeight || 400, 260);
         this.chart = LightweightCharts.createChart(this.mount, {
           width: w,
           height: h,
-          layout: { background: { color: THEME.bg }, textColor: THEME.text, fontFamily: 'Inter, sans-serif', fontSize: 11 },
-          grid: { vertLines: { color: THEME.grid }, horzLines: { color: THEME.grid } },
-          rightPriceScale: { borderColor: 'rgba(148,163,184,0.16)', scaleMargins: { top: 0.10, bottom: 0.10 } },
-          timeScale: { borderColor: 'rgba(148,163,184,0.16)', timeVisible: true, secondsVisible: false, rightOffset: 10, barSpacing: 8 },
-          crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-          localization: { timeFormatter: t => T.fmtCAT(T.fromChartTime(t)) + ' CAT' }
+          layout: {
+            background: { color: THEME.bg },
+            textColor: THEME.text,
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Ubuntu, sans-serif',
+            fontSize: 11
+          },
+          grid: {
+            vertLines: { color: THEME.grid },
+            horzLines: { color: THEME.grid }
+          },
+          rightPriceScale: {
+            borderColor: THEME.border,
+            scaleMargins: { top: 0.08, bottom: 0.08 },
+            autoScale: true
+          },
+          timeScale: {
+            borderColor: THEME.border,
+            timeVisible: true,
+            secondsVisible: false,
+            rightOffset: 8,
+            barSpacing: 8,
+            minBarSpacing: 2
+          },
+          crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2a2e39' },
+            horzLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2a2e39' }
+          },
+          localization: {
+            timeFormatter: t => T.fmtCAT(T.fromChartTime(t)) + ' CAT'
+          }
         });
+
         this.series = this.chart.addCandlestickSeries({
-          upColor: '#2563eb',
-          downColor: '#0f172a',
-          borderUpColor: '#60a5fa',
-          borderDownColor: '#cbd5e1',
-          wickUpColor: '#60a5fa',
-          wickDownColor: '#94a3b8'
+          upColor: THEME.up,
+          downColor: THEME.down,
+          borderUpColor: THEME.up,
+          borderDownColor: THEME.down,
+          wickUpColor: THEME.wickUp,
+          wickDownColor: THEME.wickDown,
+          lastValueVisible: true,
+          priceLineVisible: true,
+          priceLineWidth: 1,
+          priceLineStyle: 2
         });
         this.priceLines = [];
       }
@@ -106,6 +134,11 @@
       this.canvas = document.createElement('canvas');
       Object.assign(this.canvas.style, { position: 'absolute', inset: '0', pointerEvents: 'none', zIndex: '2' });
       container.appendChild(this.canvas);
+
+      // Subtle top-left OHLC & watermark bar inside the chart
+      this.ohlcEl = document.createElement('div');
+      this.ohlcEl.className = 'chart-ohlc-bar';
+      container.appendChild(this.ohlcEl);
 
       this.titleEl = document.createElement('div');
       this.titleEl.className = 'chart-watermark';
@@ -123,19 +156,50 @@
 
       if (this.chart) {
         this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.requestDraw());
-        this.chart.subscribeCrosshairMove(() => this.requestDraw());
+        this.chart.subscribeCrosshairMove(param => {
+          this.updateOhlcBar(param);
+          this.requestDraw();
+        });
       }
       new ResizeObserver(onResize).observe(container);
       container.addEventListener('wheel', () => this.requestDraw(), { passive: true });
       container.addEventListener('mouseup', () => this.requestDraw());
     }
 
-    setTitle(t) { if (this.titleEl) this.titleEl.textContent = t; }
+    updateOhlcBar(param) {
+      if (!this.ohlcEl || !this.data.length) return;
+      const dec = this.decimals || 2;
+      let bar = null;
+      if (param && param.time && this.series && param.seriesData) {
+        bar = param.seriesData.get(this.series);
+      }
+      if (!bar) {
+        bar = this.data[this.data.length - 1];
+      }
+      if (!bar || !isFinite(bar.open)) return;
+      const isUp = bar.close >= bar.open;
+      const chg = bar.close - bar.open;
+      const pct = bar.open ? (chg / bar.open) * 100 : 0;
+      const col = isUp ? '#089981' : '#f23645';
+      this.ohlcEl.innerHTML = `
+        <span class="ohlc-item">O <b style="color:${col}">${bar.open.toFixed(dec)}</b></span>
+        <span class="ohlc-item">H <b style="color:${col}">${bar.high.toFixed(dec)}</b></span>
+        <span class="ohlc-item">L <b style="color:${col}">${bar.low.toFixed(dec)}</b></span>
+        <span class="ohlc-item">C <b style="color:${col}">${bar.close.toFixed(dec)}</b></span>
+        <span class="ohlc-item" style="color:${col}">${chg >= 0 ? '+' : ''}${chg.toFixed(dec)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)</span>
+      `;
+    }
+
+    setTitle(t) {
+      if (this.titleEl) this.titleEl.textContent = t;
+    }
 
     setPrecision(decimals) {
       this.decimals = decimals;
       if (this.series) {
-        this.series.applyOptions({ priceFormat: { type: 'price', precision: decimals, minMove: Math.pow(10, -decimals) } });
+        this.series.applyOptions({
+          priceFormat: { type: 'price', precision: decimals, minMove: Math.pow(10, -decimals) }
+        });
       }
     }
 
@@ -153,59 +217,68 @@
             close: c.close
           }));
           this.series.setData(lwcData);
-          this.fit(95);
+          this.fit(85);
         } catch (err) {
           console.warn('LWC setData fallback:', err);
         }
       }
+      this.updateOhlcBar(null);
       this.requestDraw();
     }
 
     update(c) {
       if (!c || !isFinite(c.time) || !isFinite(c.close)) return;
+      const hi = Math.max(c.open, c.high, c.low, c.close);
+      const lo = Math.min(c.open, c.high, c.low, c.close);
+      const clean = { time: c.time, open: c.open, high: hi, low: lo, close: c.close };
+
       const last = this.data[this.data.length - 1];
-      if (last && T.toChartTime(c.time) < T.toChartTime(last.time)) return;
-      if (last && T.toChartTime(c.time) === T.toChartTime(last.time)) {
-        this.data[this.data.length - 1] = c;
+      if (last && T.toChartTime(clean.time) < T.toChartTime(last.time)) return;
+      if (last && T.toChartTime(clean.time) === T.toChartTime(last.time)) {
+        this.data[this.data.length - 1] = clean;
       } else {
-        this.data.push(c);
+        this.data.push(clean);
       }
       if (this.series) {
         try {
           this.series.update({
-            time: T.toChartTime(c.time),
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close
+            time: T.toChartTime(clean.time),
+            open: clean.open,
+            high: clean.high,
+            low: clean.low,
+            close: clean.close
           });
         } catch (e) {}
       }
+      this.updateOhlcBar(null);
       this.requestDraw();
     }
 
-    fit(bars = 95) {
+    fit(bars = 85) {
       const n = this.data.length;
       if (!n || !this.chart) return;
       this.chart.timeScale().setVisibleLogicalRange({
         from: Math.max(0, n - bars),
-        to: n + 8
+        to: n + 6
       });
+      if (this.chart.priceScale) {
+        try { this.chart.priceScale('right').applyOptions({ autoScale: true }); } catch (e) {}
+      }
       this.requestDraw();
     }
 
-    focusTime(ms, barsBefore = 45, barsAfter = 30) {
+    focusTime(ms, barsBefore = 45, barsAfter = 25) {
       if (!this.chart || !this.data.length || !isFinite(ms)) {
-        this.fit(90);
+        this.fit(85);
         return;
       }
       const idx = this.indexOf(ms);
       if (!isFinite(idx)) {
-        this.fit(90);
+        this.fit(85);
         return;
       }
       const from = Math.max(0, idx - barsBefore);
-      const to = Math.min(this.data.length + 10, Math.max(from + 20, idx + barsAfter));
+      const to = Math.min(this.data.length + 8, Math.max(from + 20, idx + barsAfter));
       this.chart.timeScale().setVisibleLogicalRange({ from, to });
       this.requestDraw();
     }
@@ -258,7 +331,6 @@
           .map(m => ({ ...m, time: snap(m.time) }))
           .filter(m => m.time != null)
           .sort((a, b) => a.time - b.time);
-        // Deduplicate markers on the exact same bar timestamp if needed
         try { this.series.setMarkers(rawMarkers); } catch (e) {}
       }
       this.requestDraw();
@@ -284,7 +356,6 @@
       ctx.clearRect(0, 0, rect.width, rect.height);
       if (!this.data.length) return;
 
-      // Fallback native candlestick drawing if LightweightCharts CDN was blocked
       if (!this.hasLWC) {
         this.drawFallbackCandles(ctx, rect.width, rect.height);
         return;
@@ -301,15 +372,15 @@
       ctx.rect(0, 0, plotW, plotH);
       ctx.clip();
 
-      // 1. Session bands (full height)
+      // 1. Session bands
       for (const b of this.ann.bands || []) {
         const x1 = this.x(b.from), x2 = this.x(b.to);
         if (x1 == null || x2 == null || x2 < 0 || x1 > plotW) continue;
         ctx.fillStyle = b.fill;
         ctx.fillRect(x1, 0, x2 - x1, plotH);
         if (x2 - x1 > 46) {
-          ctx.fillStyle = b.labelColor || 'rgba(148,163,184,0.55)';
-          ctx.font = '600 9px Inter, sans-serif';
+          ctx.fillStyle = b.labelColor || 'rgba(134, 137, 147, 0.55)';
+          ctx.font = '500 9px -apple-system, BlinkMacSystemFont, sans-serif';
           ctx.fillText(b.label, Math.max(x1, 0) + 4, plotH - 6);
         }
       }
@@ -324,34 +395,34 @@
         if (b.fill) { ctx.fillStyle = b.fill; ctx.fillRect(x1, top, x2 - x1, h); }
         if (b.stroke) {
           ctx.strokeStyle = b.stroke;
-          ctx.lineWidth = b.lineWidth || 1.2;
+          ctx.lineWidth = b.lineWidth || 1;
           ctx.setLineDash(b.dash ? [4, 3] : []);
           ctx.strokeRect(x1 + 0.5, top + 0.5, x2 - x1, h);
           ctx.setLineDash([]);
         }
         if (b.label) {
-          this.tag(ctx, b.label, Math.max(x1, 2) + 4, (b.labelPos === 'bottom' ? top + h - 10 : top + 10), b.labelColor || b.stroke || '#94a3b8', plotW);
+          this.tag(ctx, b.label, Math.max(x1, 2) + 4, (b.labelPos === 'bottom' ? top + h - 10 : top + 10), b.labelColor || b.stroke || '#868993', plotW);
         }
       }
 
-      // 3. Lines (CRTH, 50% Midpoint, CRTL, Model #1 Trigger)
+      // 3. Structural Horizontal Rays (CRTH, 50% Midpoint, CRTL, Model #1)
       for (const l of this.ann.lines || []) {
         const x1 = l.from != null ? this.x(l.from) : 0;
         const x2 = l.to != null ? this.x(l.to) : plotW;
         const y = this.y(l.price);
         if (x1 == null || x2 == null || y == null) continue;
         ctx.strokeStyle = l.color;
-        ctx.lineWidth = l.width || 1.3;
+        ctx.lineWidth = l.width || 1.2;
         ctx.setLineDash(l.dash ? [5, 4] : []);
         ctx.beginPath();
         ctx.moveTo(x1, Math.round(y) + 0.5);
         ctx.lineTo(x2, Math.round(y) + 0.5);
         ctx.stroke();
         ctx.setLineDash([]);
-        if (l.label) this.tag(ctx, l.label, Math.min(Math.max(x1, 2) + 4, plotW - 110), y - 10, l.color, plotW);
+        if (l.label) this.tag(ctx, l.label, Math.min(Math.max(x1, 2) + 4, plotW - 110), y - 9, l.color, plotW);
       }
 
-      // 4. Prominent TradingView-style BLUE & RED Position Tool (Entry, Stop Loss, TP1 50%, TP2 100%)
+      // 4. TradingView Long/Short Position Tool (Red Stop-Loss Zone + Blue Target Zone)
       if (this.ann.positionBox) {
         this.drawPositionBox(ctx, this.ann.positionBox, plotW, plotH);
       }
@@ -359,109 +430,92 @@
       ctx.restore();
     }
 
-    /**
-     * Draws the unmistakable BLUE & RED Entry / Stop-Loss / TP1 / TP2 Position Tool
-     * (Red box = Stop Loss Risk Zone, Blue box = Profit Target Zone with 50% TP1 + BE line)
-     */
     drawPositionBox(ctx, pos, plotW) {
       const x1 = this.x(pos.from);
-      const x2 = Math.min(plotW - 6, Math.max((this.x(pos.to) ?? (x1 + 140)), (x1 ?? 0) + 110));
+      const x2 = Math.min(plotW - 6, Math.max((this.x(pos.to) ?? (x1 + 130)), (x1 ?? 0) + 100));
       const yEntry = this.y(pos.entry);
       const ySL = this.y(pos.sl);
       const yTP1 = this.y(pos.tp1);
       const yTP2 = this.y(pos.tp2);
       if ([x1, yEntry, ySL, yTP1, yTP2].some(v => v == null)) return;
+      if (x2 < 0 || x1 > plotW) return;
 
-      const boxW = Math.max(80, x2 - x1);
+      const boxW = Math.max(72, x2 - x1);
       const dec = this.decimals || 2;
 
-      // A. RED BOX — Stop Loss Zone (Entry ↔ Stop Loss)
+      // A. RED ZONE — Stop Loss Risk Zone
       const slTop = Math.min(yEntry, ySL);
-      const slH = Math.max(Math.abs(ySL - yEntry), 6);
-      const redGrad = ctx.createLinearGradient(0, slTop, 0, slTop + slH);
-      redGrad.addColorStop(0, 'rgba(244, 63, 94, 0.34)');
-      redGrad.addColorStop(1, 'rgba(225, 29, 72, 0.22)');
-      ctx.fillStyle = redGrad;
+      const slH = Math.max(Math.abs(ySL - yEntry), 4);
+      ctx.fillStyle = 'rgba(242, 54, 69, 0.24)';
       ctx.fillRect(x1, slTop, boxW, slH);
-
-      ctx.strokeStyle = '#f43f5e';
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(242, 54, 69, 0.85)';
+      ctx.lineWidth = 1.25;
       ctx.strokeRect(x1 + 0.5, slTop + 0.5, boxW, slH);
 
-      // B. BLUE BOX — Take Profit Zone (Entry ↔ TP2 100% CRT)
+      // B. BLUE ZONE — Profit Target Zone (Entry to TP2)
       const tpTop = Math.min(yEntry, yTP2);
-      const tpH = Math.max(Math.abs(yTP2 - yEntry), 8);
-      const blueGrad = ctx.createLinearGradient(0, tpTop, 0, tpTop + tpH);
-      blueGrad.addColorStop(0, 'rgba(37, 99, 235, 0.36)');
-      blueGrad.addColorStop(1, 'rgba(14, 165, 233, 0.24)');
-      ctx.fillStyle = blueGrad;
+      const tpH = Math.max(Math.abs(yTP2 - yEntry), 6);
+      ctx.fillStyle = 'rgba(41, 98, 255, 0.22)';
       ctx.fillRect(x1, tpTop, boxW, tpH);
-
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(41, 98, 255, 0.85)';
+      ctx.lineWidth = 1.25;
       ctx.strokeRect(x1 + 0.5, tpTop + 0.5, boxW, tpH);
 
-      // C. Solid White/Cyan Entry Line separating Red & Blue boxes
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.2;
+      // C. Entry Line
+      ctx.strokeStyle = '#d1d4dc';
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.moveTo(x1, yEntry);
       ctx.lineTo(x1 + boxW, yEntry);
       ctx.stroke();
 
-      // D. Amber Dashed 50% Rule Line (TP1 — Shave 50% & Move SL to Breakeven)
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 1.7;
-      ctx.setLineDash([6, 4]);
+      // D. 50% Equilibrium TP1 + Breakeven Line
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([5, 4]);
       ctx.beginPath();
       ctx.moveTo(x1, yTP1);
       ctx.lineTo(x1 + boxW, yTP1);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // E. Crisp Callout Badges on the Position Box
-      this.pill(ctx, `STOP LOSS ${pos.sl.toFixed(dec)} (-1R)`, x1 + 6, ySL + (pos.isBear ? -11 : 11), '#be123c', '#ffffff', plotW);
-      this.pill(ctx, `${pos.dir} ENTRY ${pos.entry.toFixed(dec)}`, x1 + 6, yEntry, '#1d4ed8', '#ffffff', plotW);
-      this.pill(ctx, `TP1 (50% + BE) ${pos.tp1.toFixed(dec)} (1:${pos.rr1.toFixed(2)})`, x1 + 6, yTP1, '#b45309', '#ffffff', plotW);
-      this.pill(ctx, `TP2 (100% CRT) ${pos.tp2.toFixed(dec)} (1:${pos.rr2.toFixed(2)})`, x1 + 6, yTP2 + (pos.isBear ? 11 : -11), '#047857', '#ffffff', plotW);
+      // E. Compact TradingView-style Position Labels
+      this.pill(ctx, `SL ${pos.sl.toFixed(dec)} (-1R)`, x1 + 5, ySL + (pos.isBear ? -10 : 10), '#b91c1c', '#ffffff', plotW);
+      this.pill(ctx, `${pos.dir} ${pos.entry.toFixed(dec)}`, x1 + 5, yEntry, '#1d4ed8', '#ffffff', plotW);
+      this.pill(ctx, `TP1 50% ${pos.tp1.toFixed(dec)} (${pos.rr1.toFixed(1)}R)`, x1 + 5, yTP1, '#b45309', '#ffffff', plotW);
+      this.pill(ctx, `TP2 ${pos.tp2.toFixed(dec)} (${pos.rr2.toFixed(1)}R)`, x1 + 5, yTP2 + (pos.isBear ? 10 : -10), '#047857', '#ffffff', plotW);
     }
 
     pill(ctx, text, x, y, bg, fg, maxX) {
       ctx.save();
-      ctx.font = '700 10px "JetBrains Mono", monospace';
-      const w = ctx.measureText(text).width + 12;
-      const h = 18;
+      ctx.font = '600 10px "JetBrains Mono", monospace';
+      const w = ctx.measureText(text).width + 10;
+      const h = 16;
       const xx = Math.max(4, Math.min(x, maxX - w - 4));
       const yy = y - h / 2;
       ctx.fillStyle = bg;
-      roundedRect(ctx, xx, yy, w, h, 4);
+      roundedRect(ctx, xx, yy, w, h, 3);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
       ctx.fillStyle = fg;
       ctx.textBaseline = 'middle';
-      ctx.fillText(text, xx + 6, y + 0.5);
+      ctx.fillText(text, xx + 5, y + 0.5);
       ctx.restore();
     }
 
     tag(ctx, text, x, y, color, maxX) {
-      ctx.font = '600 10px Inter, sans-serif';
-      const w = ctx.measureText(text).width + 10;
+      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif';
+      const w = ctx.measureText(text).width + 8;
       const xx = Math.max(2, Math.min(x, maxX - w - 2));
-      ctx.fillStyle = 'rgba(8, 12, 20, 0.88)';
-      ctx.fillRect(xx, y - 8, w, 16);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(xx + 0.5, y - 7.5, w - 1, 15);
+      ctx.fillStyle = 'rgba(19, 23, 34, 0.88)';
+      ctx.fillRect(xx, y - 7, w, 14);
       ctx.fillStyle = color;
       ctx.textBaseline = 'middle';
-      ctx.fillText(text, xx + 5, y + 0.5);
+      ctx.fillText(text, xx + 4, y + 0.5);
       ctx.textBaseline = 'alphabetic';
     }
 
     drawFallbackCandles(ctx, width, height) {
-      const candles = this.data.slice(-80);
+      const candles = this.data.slice(-85);
       if (!candles.length) return;
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, width, height);
@@ -469,7 +523,7 @@
       const pw = width - padL - padR, ph = height - padT - padB;
       let minP = Infinity, maxP = -Infinity;
       candles.forEach(c => { if (c.low < minP) minP = c.low; if (c.high > maxP) maxP = c.high; });
-      const m = (maxP - minP) * 0.1 || 1;
+      const m = (maxP - minP) * 0.08 || 1;
       minP -= m; maxP += m;
       const py = p => padT + ((maxP - p) / (maxP - minP)) * ph;
       const step = pw / candles.length;
@@ -477,20 +531,19 @@
       candles.forEach((c, i) => {
         const cx = padL + (i + 0.5) * step;
         const bull = c.close >= c.open;
-        ctx.strokeStyle = bull ? '#60a5fa' : '#94a3b8';
+        const col = bull ? THEME.up : THEME.down;
+        ctx.strokeStyle = col;
         ctx.beginPath(); ctx.moveTo(cx, py(c.high)); ctx.lineTo(cx, py(c.low)); ctx.stroke();
         const top = Math.min(py(c.open), py(c.close));
         const bh = Math.max(2, Math.abs(py(c.close) - py(c.open)));
-        ctx.fillStyle = bull ? '#2563eb' : '#1e293b';
+        ctx.fillStyle = col;
         ctx.fillRect(cx - cw / 2, top, cw, bh);
-        ctx.strokeRect(cx - cw / 2, top, cw, bh);
       });
     }
 
     destroy() { if (this.chart) this.chart.remove(); }
   }
 
-  /* Equity curve chart for the backtester */
   function equityChart(container) {
     container.innerHTML = '';
     if (typeof window.LightweightCharts === 'undefined') return { set() {} };
@@ -499,10 +552,10 @@
     const chart = LightweightCharts.createChart(container, {
       width: w,
       height: h,
-      layout: { background: { color: THEME.bg }, textColor: THEME.text, fontFamily: 'Inter, sans-serif', fontSize: 11 },
+      layout: { background: { color: THEME.bg }, textColor: THEME.text, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 11 },
       grid: { vertLines: { color: THEME.grid }, horzLines: { color: THEME.grid } },
-      rightPriceScale: { borderColor: 'rgba(148,163,184,0.12)' },
-      timeScale: { borderColor: 'rgba(148,163,184,0.12)', timeVisible: true },
+      rightPriceScale: { borderColor: THEME.border },
+      timeScale: { borderColor: THEME.border, timeVisible: true },
       localization: { timeFormatter: t => T.fmtCAT(T.fromChartTime(t)) + ' CAT', priceFormatter: p => p.toFixed(1) + 'R' }
     });
     new ResizeObserver(() => {
@@ -511,8 +564,8 @@
         height: Math.max(container.clientHeight, 200)
       });
     }).observe(container);
-    const a = chart.addLineSeries({ color: '#22c55e', lineWidth: 2, title: 'With 50% rule' });
-    const b = chart.addLineSeries({ color: '#f43f5e', lineWidth: 2, lineStyle: 2, title: 'Without 50% rule' });
+    const a = chart.addLineSeries({ color: '#089981', lineWidth: 2, title: 'With 50% rule' });
+    const b = chart.addLineSeries({ color: '#f23645', lineWidth: 2, lineStyle: 2, title: 'Without 50% rule' });
     return {
       set(trades, with50, without50) {
         let last = 0;

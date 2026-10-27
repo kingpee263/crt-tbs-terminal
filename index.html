@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CRT Terminal — CRT + TBS Unified Strategy + ML Engine</title>
+  <title>CRT Desk — Institutional Range &amp; Liquidity Terminal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/app.css" />
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -14,25 +14,29 @@
   <!-- ============ TOP BAR ============ -->
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">CRT</div>
+      <div class="brand-mark">KP</div>
       <div>
-        <div class="brand-name">CRT Terminal</div>
-        <div class="brand-sub">CRT + TBS · CRT Unlocked · ML Engine</div>
+        <div class="brand-name">CRT Desk</div>
+        <div class="brand-sub">Range &amp; Liquidity Execution</div>
       </div>
     </div>
 
     <div class="market-head">
-      <div class="mh-name" id="mhName">—</div>
-      <div class="mh-meta">
+      <div class="mh-top">
+        <span class="mh-name" id="mhName">—</span>
         <span class="badge" id="mhProfile">—</span>
-        <span class="mh-price mono" id="mhPrice">—</span>
         <span class="mh-feed" id="mhFeed"></span>
+      </div>
+      <div class="mh-quote">
+        <span class="mh-price mono" id="mhPrice">—</span>
+        <span class="mh-chg mono" id="mhChange"></span>
+        <span class="mh-hl mono" id="mhHighLow"></span>
       </div>
     </div>
 
     <div class="seg" id="tfSeg" role="tablist" aria-label="Timeframe pair"></div>
 
-    <div class="clock-card" id="clockCard" title="Central African Time (UTC+2). PDF 2 AMD windows converted from New York time.">
+    <div class="clock-card" id="clockCard" title="Central African Time (UTC+2)">
       <div class="clock-time mono" id="clockTime">--:--:--</div>
       <div class="clock-meta">
         <span class="clock-tz">CAT</span>
@@ -42,43 +46,47 @@
     </div>
 
     <div class="feeds" id="feedStatus">
-      <span class="feed" data-feed="deriv"><i></i>Deriv</span>
-      <span class="feed" data-feed="mt5"><i></i>SyntX</span>
+      <span class="feed" data-feed="deriv"><i></i>Deriv WS</span>
+      <span class="feed" data-feed="mt5"><i></i>SyntX / MT5</span>
       <span class="feed" data-feed="binance"><i></i>Binance</span>
     </div>
 
     <div class="top-actions">
-      <button class="icon-btn" id="alertBtn" title="Toggle alerts">🔔</button>
-      <button class="icon-btn" id="settingsBtn" title="Strategy settings">⚙</button>
+      <button class="icon-btn" id="alertBtn" title="Audio &amp; desktop alerts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" title="Execution parameters">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </header>
 
   <nav class="viewtabs">
-    <button class="vt active" data-view="terminal">1. Live Terminal &amp; Charts</button>
-    <button class="vt" data-view="signals">2. Pure Signals (A+ &amp; ML Filtered) <span class="sig-count" id="pureSigCount">0</span></button>
-    <button class="vt" data-view="backtest">3. Real Backtester</button>
-    <button class="vt" data-view="journal">4. Mistake-Fix Journal</button>
-    <button class="vt" data-view="playbook">5. Playbook &amp; CAT Times</button>
+    <button class="vt active" data-view="terminal">Chart</button>
+    <button class="vt" data-view="signals">Signals <span class="sig-count" id="pureSigCount">0</span></button>
+    <button class="vt" data-view="backtest">Backtest</button>
+    <button class="vt" data-view="journal">Journal</button>
+    <button class="vt" data-view="playbook">Reference</button>
     <div class="vt-spacer"></div>
     <div class="dst-note" id="dstNote"></div>
   </nav>
 
-  <!-- ============ 1. TERMINAL ============ -->
+  <!-- ============ CHART WORKSPACE ============ -->
   <main class="view active" id="view-terminal">
     <aside class="watchlist">
       <div class="wl-head">
-        <input type="search" id="wlSearch" placeholder="Search 75+ Deriv &amp; Weltrade pairs…" />
+        <input type="search" id="wlSearch" placeholder="Filter symbol (e.g. V75, PainX, XAU)…" />
         <div class="wl-cats" id="wlCats">
           <button data-cat="all" class="active">All</button>
-          <button data-cat="weltrade">Weltrade SyntX</button>
-          <button data-cat="deriv_vol">Deriv Vol</button>
-          <button data-cat="deriv_boom">Boom/Crash</button>
-          <button data-cat="deriv_other">Step/Jump/DEX</button>
-          <button data-cat="forex">Forex/Metals</button>
+          <button data-cat="deriv_vol">Volatility</button>
+          <button data-cat="deriv_boom">Boom / Crash</button>
+          <button data-cat="deriv_other">Step / Jump</button>
+          <button data-cat="weltrade">Weltrade</button>
+          <button data-cat="forex">FX / Metals</button>
           <button data-cat="crypto">Crypto</button>
         </div>
-        <label class="tog small" style="margin-top:5px;">
-          <input type="checkbox" id="wlActiveOnly" /> Only Pure / Active Setups
+        <label class="tog small" style="margin-top:4px;">
+          <input type="checkbox" id="wlActiveOnly" /> Active setups only
         </label>
       </div>
       <div class="wl-body" id="wlBody"></div>
@@ -88,24 +96,25 @@
     <section class="center">
       <div class="chart-toolbar">
         <div class="seg small" id="layoutSeg">
-          <button data-layout="split" class="active">Split (HTF + LTF)</button>
-          <button data-layout="htf">HTF Only</button>
-          <button data-layout="ltf">LTF Only</button>
+          <button data-layout="split" class="active">Dual Pane</button>
+          <button data-layout="htf">HTF</button>
+          <button data-layout="ltf">LTF</button>
         </div>
-        <label class="tog"><input type="checkbox" id="togPositionBox" checked /> Blue/Red Entry &amp; SL Box</label>
-        <label class="tog"><input type="checkbox" id="togSessions" checked /> CAT Sessions</label>
-        <label class="tog"><input type="checkbox" id="togOte" checked /> OTE Zone</label>
+        <label class="tog"><input type="checkbox" id="togPositionBox" checked /> Position Tool</label>
+        <label class="tog"><input type="checkbox" id="togSessions" checked /> Sessions</label>
+        <label class="tog"><input type="checkbox" id="togOte" checked /> OTE</label>
         <label class="tog"><input type="checkbox" id="togKl" checked /> Key Levels</label>
         <div class="tb-spacer"></div>
-        <button class="btn ghost" id="jumpBtn">⌖ Focus Setup</button>
-        <button class="btn ghost" id="reloadBtn">↻ Reload</button>
+        <button class="btn ghost" id="liveEdgeBtn" title="Snap charts to live current market candle">Live Price</button>
+        <button class="btn ghost" id="jumpBtn" title="Center on selected CRT setup">Focus Setup</button>
+        <button class="btn ghost" id="reloadBtn" title="Refresh candle history">Refresh</button>
       </div>
 
       <div class="charts" id="charts" data-layout="split">
         <div class="chart-card" id="htfCard">
           <div class="chart-head">
             <span class="tf-pill" id="htfPill">4H</span>
-            <span class="chart-title">HTF · CRT Range (CRTH / 50% / CRTL) &amp; Key Level</span>
+            <span class="chart-title">HTF Structure · Range (CRTH / 50% / CRTL)</span>
             <span class="chart-sub" id="htfSub"></span>
           </div>
           <div class="chart-host" id="htfChart"></div>
@@ -113,22 +122,22 @@
         <div class="chart-card" id="ltfCard">
           <div class="chart-head">
             <span class="tf-pill ltf" id="ltfPill">5m</span>
-            <span class="chart-title">LTF · TBS → Model #1 → Blue/Red Entry &amp; Stop Loss</span>
+            <span class="chart-title">LTF Execution · Purge / TBS / Entry</span>
             <span class="chart-sub" id="ltfSub"></span>
           </div>
           <div class="chart-host" id="ltfChart"></div>
         </div>
-        <div class="loading" id="loading"><div class="spinner"></div><span id="loadingText">Connecting to live data…</span></div>
+        <div class="loading" id="loading"><div class="spinner"></div><span id="loadingText">Connecting to market feed…</span></div>
       </div>
 
       <div class="setups-card">
         <div class="card-head">
-          <span>Evaluated CRT Setups on This Pair (Click any row to inspect Blue/Red Entry &amp; Stop-Loss on chart)</span>
+          <span>Recent CRT Ranges</span>
           <span class="muted small" id="setupsSummary"></span>
         </div>
         <div class="table-wrap">
           <table class="tbl" id="setupsTable">
-            <thead><tr><th>C1 (CAT)</th><th>Dir</th><th>State</th><th>Pure Filter</th><th>ML Conf</th><th>Key Level</th><th>Inside</th><th>Entry</th><th>Stop Loss</th><th>TP1 (50%) / TP2</th><th>Grade</th><th>Result</th></tr></thead>
+            <thead><tr><th>C1 Time (CAT)</th><th>Bias</th><th>Status</th><th>Filter</th><th>Prob</th><th>Key Level</th><th>Inside</th><th>Entry</th><th>Stop</th><th>TP1 / TP2</th><th>Grade</th><th>R</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -138,60 +147,56 @@
     <aside class="ticket" id="ticket">
       <div class="card">
         <div class="card-head">
-          <span>Trade Execution Ticket</span>
+          <span>Order Ticket</span>
           <span class="grade" id="tkGrade">—</span>
         </div>
         <div class="state-banner" id="tkState">—</div>
         <ol class="stepper" id="tkStepper">
-          <li>CRT C1</li><li>Sweep / TBS</li><li>Model #1</li><li>Entry</li><li>TP1 + BE</li><li>TP2</li>
+          <li>C1</li><li>Sweep</li><li>M1</li><li>Entry</li><li>TP1</li><li>TP2</li>
         </ol>
-        <div class="seg small block-seg" id="entryModelSeg" title="Switch entry model on chart &amp; ticket (PDF 2 p.18)">
-          <button data-emodel="model1" class="active">Model #1 (TBS)</button>
-          <button data-emodel="ote">Model #2 (OTE)</button>
-          <button data-emodel="kod">Model #3 (KOD)</button>
+        <div class="seg small block-seg" id="entryModelSeg" title="Switch entry model">
+          <button data-emodel="model1" class="active">Model #1</button>
+          <button data-emodel="ote">OTE 64%</button>
+          <button data-emodel="kod">KOD</button>
         </div>
 
-        <!-- Visual Mini Blue/Red Entry & Stop Loss Bar -->
         <div class="pos-visualizer" id="tkPosVis"></div>
 
         <div class="levels" id="tkLevels"></div>
         <div class="sizing" id="tkSizing"></div>
         <div class="tk-actions">
-          <button class="btn primary" id="tkLog">+ Log to Journal</button>
-          <button class="btn ghost" id="tkCopy">Copy Signal</button>
+          <button class="btn primary" id="tkLog">Log Trade</button>
+          <button class="btn ghost" id="tkCopy">Copy Levels</button>
         </div>
       </div>
 
-      <!-- Adaptive Machine Learning Pair Intelligence Card -->
       <div class="card">
         <div class="card-head">
-          <span>🧠 ML Pair Learner</span>
-          <button class="btn ghost small" id="trainMlBtn" style="padding:2px 7px;">+ Deep Train</button>
+          <span>Pair Quant Model</span>
+          <button class="btn ghost small" id="trainMlBtn" style="padding:2px 7px;">Calibrate</button>
         </div>
         <div id="tkMlBox" class="ml-box"></div>
       </div>
 
       <div class="card">
-        <div class="card-head"><span>6-Gate Anti-Random Audit</span><span class="muted small" id="tkScore"></span></div>
+        <div class="card-head"><span>Confluence Checklist</span><span class="muted small" id="tkScore"></span></div>
         <div class="checks" id="tkChecks"></div>
       </div>
     </aside>
   </main>
 
-  <!-- ============ 2. PURE SIGNALS (A+ & ML FILTERED ONLY) ============ -->
+  <!-- ============ SIGNALS ============ -->
   <main class="view" id="view-signals">
     <section class="signals-page">
       <div class="card signals-hero">
         <div>
-          <h2 style="font-size:15px; font-weight:800; color:#fff;">Pure Institutional Signals — Zero Random Trades</h2>
+          <h2 style="font-size:14px; font-weight:700; color:#d1d4dc;">Filtered High-Confluence Setups</h2>
           <p class="muted small" style="margin-top:3px;">
-            Only setups passing all <b>6 Anti-Random Gates</b> appear here:
-            (1) Thick HTF CRT Candle, (2) Verified HTF Key Level (OB/FVG/OHP/OLP), (3) LTF TBS Body-Close + Model #1 Trigger,
-            (4) Min 1:1.15 RR to 50% CRT Midpoint, (5) Grade A or A+, and (6) <b>ML Pair-Movement Confidence ≥ 66%</b>.
+            Displays only active setups passing all 6 structural criteria: valid HTF CRT range, HTF key level tap (OB / FVG / liquidity pool), LTF Turtle Soup body close + Model #1 confirmation, minimum 1.15R to 50% equilibrium, Grade A/A+, and pair probability ≥ 66%.
           </p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <button class="btn primary" id="scanPureSignalsBtn">↻ Scan All Pairs &amp; Train ML</button>
+          <button class="btn primary" id="scanPureSignalsBtn">Scan Watchlist</button>
         </div>
       </div>
 
@@ -199,40 +204,40 @@
     </section>
   </main>
 
-  <!-- ============ 3. BACKTEST ============ -->
+  <!-- ============ BACKTEST ============ -->
   <main class="view" id="view-backtest">
     <aside class="bt-controls card">
-      <div class="card-head"><span>Backtest on Real History + Train ML</span></div>
-      <p class="muted small">Replays the <b>exact</b> live rules over real candles and feeds every completed setup into the pair's Machine Learning model.</p>
-      <label class="field"><span>Market</span><select id="btMarket"></select></label>
-      <label class="field"><span>Timeframe pair</span><select id="btPair"></select></label>
-      <label class="field"><span>LTF candles of history</span>
+      <div class="card-head"><span>Historical Backtest</span></div>
+      <p class="muted small">Runs the structural engine over historical market candles and calibrates the pair model.</p>
+      <label class="field"><span>Symbol</span><select id="btMarket"></select></label>
+      <label class="field"><span>Timeframe Alignment</span><select id="btPair"></select></label>
+      <label class="field"><span>Historical Bars</span>
         <select id="btBars">
-          <option value="5000">5,000 (Fast)</option>
-          <option value="15000" selected>15,000 (Standard)</option>
-          <option value="30000">30,000 (Deep)</option>
+          <option value="5000">5,000 bars</option>
+          <option value="15000" selected>15,000 bars</option>
+          <option value="30000">30,000 bars</option>
         </select>
       </label>
-      <div class="field"><span>Anti-Random Filters</span>
-        <label class="tog"><input type="checkbox" id="btKl" checked /> Require verified HTF Key Level</label>
-        <label class="tog"><input type="checkbox" id="btTime" /> Require AMD time (forex/crypto)</label>
-        <label class="tog"><input type="checkbox" id="btSmt" /> Require SMT (forex/crypto)</label>
-        <label class="tog"><input type="checkbox" id="btAplus" /> Require A+ TBS (2–6 inside candles)</label>
+      <div class="field"><span>Filters</span>
+        <label class="tog"><input type="checkbox" id="btKl" checked /> Require HTF Key Level</label>
+        <label class="tog"><input type="checkbox" id="btTime" /> Require Killzone Window (FX)</label>
+        <label class="tog"><input type="checkbox" id="btSmt" /> Require SMT Divergence (FX)</label>
+        <label class="tog"><input type="checkbox" id="btAplus" /> Require 2+ Inside Bars</label>
       </div>
-      <button class="btn primary block" id="btRun">▶ Run Backtest &amp; Train ML</button>
+      <button class="btn primary block" id="btRun">Run Backtest</button>
       <div class="bt-progress muted small" id="btProgress"></div>
     </aside>
     <section class="bt-results">
       <div class="kpis" id="btKpis"></div>
       <div class="card">
-        <div class="card-head"><span>Equity in R — With 50% Rule + BE (Green) vs Holding Full Size to TP2 (Red)</span><span class="muted small" id="btSpan"></span></div>
+        <div class="card-head"><span>Cumulative R — 50% Partial + BE (Green) vs Full Hold to TP2 (Red)</span><span class="muted small" id="btSpan"></span></div>
         <div class="eq-host" id="btEquity"></div>
       </div>
       <div class="card">
-        <div class="card-head"><span>Historical Trades</span><span class="muted small" id="btFunnel"></span></div>
+        <div class="card-head"><span>Trade Log</span><span class="muted small" id="btFunnel"></span></div>
         <div class="table-wrap tall">
           <table class="tbl" id="btTable">
-            <thead><tr><th>#</th><th>Entry (CAT)</th><th>Dir</th><th>Grade</th><th>Type</th><th>KL</th><th>Inside</th><th>Time</th><th>SMT</th><th>RR1/RR2</th><th>Outcome</th><th>R (50%)</th><th>R (no 50%)</th></tr></thead>
+            <thead><tr><th>#</th><th>Entry (CAT)</th><th>Bias</th><th>Grade</th><th>Type</th><th>KL</th><th>Inside</th><th>Window</th><th>SMT</th><th>RR1/RR2</th><th>Exit</th><th>R (50%)</th><th>R (Full)</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -240,44 +245,44 @@
     </section>
   </main>
 
-  <!-- ============ 4. JOURNAL ============ -->
+  <!-- ============ JOURNAL ============ -->
   <main class="view" id="view-journal">
     <aside class="card j-form">
-      <div class="card-head"><span>Log a trade</span></div>
+      <div class="card-head"><span>Record Execution</span></div>
       <form id="jForm">
-        <label class="field"><span>Market</span><input id="jMarket" required /></label>
+        <label class="field"><span>Symbol</span><input id="jMarket" required /></label>
         <div class="row2">
-          <label class="field"><span>Pair</span><input id="jPair" value="4H → 5m" /></label>
-          <label class="field"><span>Direction</span><select id="jDir"><option>SELL</option><option>BUY</option></select></label>
+          <label class="field"><span>Alignment</span><input id="jPair" value="4H → 5m" /></label>
+          <label class="field"><span>Side</span><select id="jDir"><option>SELL</option><option>BUY</option></select></label>
         </div>
         <div class="row2">
-          <label class="field"><span>Entry model</span><select id="jModel"><option>Model #1</option><option>CRT OTE</option><option>KOD</option></select></label>
-          <label class="field"><span>Result (R)</span><input id="jR" type="number" step="0.01" value="0" /></label>
+          <label class="field"><span>Trigger</span><select id="jModel"><option>Model #1</option><option>CRT OTE</option><option>KOD</option></select></label>
+          <label class="field"><span>Net Result (R)</span><input id="jR" type="number" step="0.01" value="0" /></label>
         </div>
-        <label class="field"><span>Followed 50% rule?</span><select id="j50"><option>Yes</option><option>No</option></select></label>
-        <label class="field"><span>Mistake</span>
+        <label class="field"><span>Managed at 50% EQ?</span><select id="j50"><option>Yes</option><option>No</option></select></label>
+        <label class="field"><span>Execution Review</span>
           <select id="jMistake">
-            <option>None — followed the plan</option>
+            <option>None — followed rules</option>
             <option>Entered before Model #1 candle closed</option>
-            <option>Skipped the 50% rule</option>
-            <option>Traded outside AMD window</option>
+            <option>Skipped 50% partial &amp; breakeven</option>
+            <option>Traded outside session window</option>
             <option>No HTF key level</option>
-            <option>Low RR to 50%</option>
-            <option>Moved / removed stop loss</option>
-            <option>Revenge / over-trading</option>
+            <option>Insufficient RR to 50%</option>
+            <option>Widened or removed stop loss</option>
+            <option>Forced / impulse entry</option>
           </select>
         </label>
         <label class="field"><span>Notes</span><textarea id="jNotes" rows="3"></textarea></label>
-        <button class="btn primary block" type="submit">Save entry</button>
+        <button class="btn primary block" type="submit">Save Record</button>
       </form>
     </aside>
     <section class="j-list">
       <div class="kpis" id="jKpis"></div>
       <div class="card">
-        <div class="card-head"><span>Journal</span><span class="muted small">"The profitable trader is an unprofitable trader that fixed their mistakes." — CRT Unlocked</span></div>
+        <div class="card-head"><span>Execution Ledger</span><span class="muted small">Track rule adherence and R expectancy</span></div>
         <div class="table-wrap tall">
           <table class="tbl" id="jTable">
-            <thead><tr><th>Date (CAT)</th><th>Market</th><th>Pair</th><th>Dir</th><th>Model</th><th>50%</th><th>R</th><th>Mistake</th><th>Notes</th><th></th></tr></thead>
+            <thead><tr><th>Date (CAT)</th><th>Symbol</th><th>Pair</th><th>Side</th><th>Model</th><th>50%</th><th>R</th><th>Review</th><th>Notes</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -285,37 +290,37 @@
     </section>
   </main>
 
-  <!-- ============ 5. PLAYBOOK ============ -->
+  <!-- ============ REFERENCE ============ -->
   <main class="view" id="view-playbook">
     <section class="pb">
       <div class="card">
-        <div class="card-head"><span>AMD windows in Central African Time</span><span class="muted small" id="pbDst"></span></div>
-        <table class="tbl" id="pbTable"><thead><tr><th>Cycle</th><th>Candle</th><th>Phase</th><th>New York</th><th>CAT (you)</th></tr></thead><tbody></tbody></table>
+        <div class="card-head"><span>Session AMD Windows (Central African Time, UTC+2)</span><span class="muted small" id="pbDst"></span></div>
+        <table class="tbl" id="pbTable"><thead><tr><th>Cycle</th><th>Candle</th><th>Phase</th><th>New York</th><th>CAT (UTC+2)</th></tr></thead><tbody></tbody></table>
         <p class="muted small" id="pbNext"></p>
       </div>
       <div class="card">
-        <div class="card-head"><span>How the timeframes line up</span></div>
-        <table class="tbl"><thead><tr><th>Pair</th><th>Style</th><th>HTF candle built from</th><th>Why</th></tr></thead>
+        <div class="card-head"><span>Timeframe Pairings</span></div>
+        <table class="tbl"><thead><tr><th>Alignment</th><th>Profile</th><th>HTF Construction</th><th>Notes</th></tr></thead>
           <tbody>
-            <tr><td>1H → 1m</td><td>Scalper</td><td>Native 1H</td><td>1H boundaries are the same in NY, UTC and CAT.</td></tr>
-            <tr><td>4H → 5m</td><td>Intraday</td><td>Forex/crypto: <b>NY-aligned 4H built from 1H</b> · Synthetics: native 4H</td><td>Broker 4H candles open 02/06/10/14/18/22 CAT; PDF 2's cycle opens at NY 01/05/09 (07/11/15 CAT in summer).</td></tr>
-            <tr><td>1D → 1H</td><td>Day trade</td><td>Forex/crypto: NY 17:00 day · Synthetics: native day (02:00 CAT)</td><td>Matches the forex trading day used for weekly AMD (Mon/Tue/Wed).</td></tr>
-            <tr><td>1W → 4H</td><td>Swing</td><td>Weekly built from daily</td><td>Deriv's largest native candle is 1 day.</td></tr>
-            <tr><td>1M → 1D</td><td>Position</td><td>Monthly built from daily</td><td>Same reason.</td></tr>
+            <tr><td>1H → 1m</td><td>Scalp</td><td>Native 1H</td><td>Aligned across NY, UTC, and CAT.</td></tr>
+            <tr><td>4H → 5m</td><td>Intraday</td><td>FX/Crypto: NY-aligned 4H · Synthetics: native 4H</td><td>Aligns 4H boundaries with New York session opens (07:00 / 11:00 / 15:00 CAT).</td></tr>
+            <tr><td>1D → 1H</td><td>Day Trade</td><td>FX/Crypto: 17:00 NY close · Synthetics: 02:00 CAT</td><td>Matches institutional daily settlement.</td></tr>
+            <tr><td>1W → 4H</td><td>Swing</td><td>Weekly aggregated from daily bars</td><td>Provides clean weekly CRTH / 50% / CRTL levels.</td></tr>
+            <tr><td>1M → 1D</td><td>Position</td><td>Monthly aggregated from daily bars</td><td>Macro range reference.</td></tr>
           </tbody>
         </table>
       </div>
       <div class="card span2">
-        <div class="card-head"><span>The unified strategy (what the engine checks)</span></div>
+        <div class="card-head"><span>Execution Rules</span></div>
         <div class="steps">
-          <div class="step"><b>1 · HTF CRT candle</b><p>Closed candle with body ≥ 50% of its range and larger than each wick. Mark CRTH, 50%, CRTL. <em>PDF 1 p.7–8</em></p></div>
-          <div class="step"><b>2 · Key level</b><p>CRT must trade into a real OB, FVG, or purge an old high/low (OHP/OLP). <em>PDF 1 p.9–14</em></p></div>
-          <div class="step"><b>3 · Time + SMT</b><p>Sweep inside the AMD manipulation window; correlated pair fails to sweep. <b>Off for synthetics.</b> <em>PDF 2 p.12–14, 24–28</em></p></div>
-          <div class="step"><b>4 · TBS</b><p>First LTF candle that <b>closes</b> beyond CRTH/CRTL. 2–6 inside candles before it = A+. <em>PDF 1 p.16–17</em></p></div>
-          <div class="step"><b>5 · Model #1 entry</b><p>Enter when an LTF candle closes beyond the Model #1 candle. Invalid if the HTF candle closes beyond the level or price reaches 50% first. <em>PDF 1 p.18–20, PDF 2 p.18</em></p></div>
-          <div class="step"><b>6 · Stop loss</b><p>Beyond the manipulation extreme + 0.1 ATR (+1 ATR against Boom/Crash/GainX/PainX spikes).</p></div>
-          <div class="step"><b>7 · 50% rule</b><p>Close half at 50% of the CRT and move SL to breakeven; runner to the opposite end. Skip if RR to 50% &lt; 1.15. <em>PDF 1 p.8, 29 · PDF 2 p.16</em></p></div>
-          <div class="step"><b>8 · ML Pair Learner</b><p>Online Logistic Regression learns each pair's sweep depth, compression response, and key-level hit rate to reject low-probability setups.</p></div>
+          <div class="step"><b>1 · HTF Range (C1)</b><p>Closed HTF candle with body ≥ 50% of total range. Defines CRTH, 50% Equilibrium, and CRTL.</p></div>
+          <div class="step"><b>2 · HTF Key Level</b><p>Range extreme must engage an Order Block, Fair Value Gap, or Old High/Low liquidity pool.</p></div>
+          <div class="step"><b>3 · Session / SMT</b><p>Purge occurs inside the manipulation window for FX/Metals; synthetic indices trade 24/7 on structure.</p></div>
+          <div class="step"><b>4 · Turtle Soup / TBS</b><p>LTF candle sweeps and closes beyond CRTH/CRTL. 2–6 inside bars prior to sweep increases compression grade.</p></div>
+          <div class="step"><b>5 · Model #1 Trigger</b><p>Enter on LTF candle body close back through the Model #1 reference candle before price reaches 50% EQ.</p></div>
+          <div class="step"><b>6 · Stop Placement</b><p>Placed strictly beyond the manipulation extreme wick plus ATR buffer.</p></div>
+          <div class="step"><b>7 · 50% Equilibrium Rule</b><p>Bank 50% at the CRT midpoint (TP1) and move stop loss to breakeven; hold remainder for opposing CRT extreme (TP2).</p></div>
+          <div class="step"><b>8 · Pair Quant Filter</b><p>Online logistic regression tracks each symbol's historical sweep depth and TP1 hit rate to filter out low-expectancy setups.</p></div>
         </div>
       </div>
     </section>
@@ -324,35 +329,38 @@
   <!-- ============ SETTINGS ============ -->
   <div class="modal" id="settingsModal" hidden>
     <div class="modal-card">
-      <div class="card-head"><span>Strategy &amp; risk settings</span><button class="icon-btn" id="settingsClose">✕</button></div>
+      <div class="card-head"><span>Execution &amp; Risk Parameters</span><button class="icon-btn" id="settingsClose">✕</button></div>
       <div class="row2">
-        <label class="field"><span>Account balance ($)</span><input type="number" id="sBalance" step="10" /></label>
-        <label class="field"><span>Risk per trade (%)</span><input type="number" id="sRisk" step="0.25" /></label>
+        <label class="field"><span>Account Balance ($)</span><input type="number" id="sBalance" step="10" /></label>
+        <label class="field"><span>Risk per Trade (%)</span><input type="number" id="sRisk" step="0.25" /></label>
       </div>
       <div class="row2">
         <label class="field"><span>Min RR to 50% (TP1)</span><input type="number" id="sMinRR" step="0.1" /></label>
-        <label class="field"><span>Max HTF candles to wait for sweep</span><input type="number" id="sMaxWait" min="1" max="12" /></label>
+        <label class="field"><span>Max HTF Bars for Sweep</span><input type="number" id="sMaxWait" min="1" max="12" /></label>
       </div>
       <div class="row2">
-        <label class="field"><span>SL buffer (× ATR)</span><input type="number" id="sBuf" step="0.05" /></label>
-        <label class="field"><span>Extra buffer vs spikes (× ATR)</span><input type="number" id="sSpike" step="0.1" /></label>
+        <label class="field"><span>SL Buffer (× ATR)</span><input type="number" id="sBuf" step="0.05" /></label>
+        <label class="field"><span>Spike Buffer (× ATR)</span><input type="number" id="sSpike" step="0.1" /></label>
       </div>
-      <label class="field"><span>Model #1 definition</span>
+      <label class="field"><span>Model #1 Variant</span>
         <select id="sModel1">
-          <option value="pdf2">PDF 2 — thick candle INTO the level; enter on close beyond it (reversal)</option>
-          <option value="pdf1">PDF 1 — first thick opposing candle after TBS; enter on close beyond it</option>
+          <option value="pdf2">Thick candle into level — trigger on reversal close</option>
+          <option value="pdf1">First opposing candle after TBS — trigger on continuation close</option>
         </select>
       </label>
-      <label class="field"><span>Min CRT body ratio</span><input type="number" id="sBody" step="0.05" min="0.3" max="0.9" /></label>
+      <label class="field"><span>Min C1 Body Ratio</span><input type="number" id="sBody" step="0.05" min="0.3" max="0.9" /></label>
       <div class="row2">
-        <label class="field"><span>Telegram Bot Token (optional)</span><input type="text" id="sTgToken" placeholder="123456:ABC-DEF..." /></label>
-        <label class="field"><span>Telegram Chat ID (optional)</span><input type="text" id="sTgChat" placeholder="e.g. 987654321" /></label>
+        <label class="field"><span>Telegram Bot Token</span><input type="text" id="sTgToken" placeholder="Optional" /></label>
+        <label class="field"><span>Telegram Chat ID</span><input type="text" id="sTgChat" placeholder="Optional" /></label>
       </div>
-      <div class="modal-actions"><button class="btn primary" id="settingsSave">Save &amp; re-scan</button></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="sReset">Reset Defaults</button>
+        <button class="btn primary" id="sSave">Apply</button>
+      </div>
     </div>
   </div>
 
-  <div class="toast-host" id="toasts"></div>
+  <div class="toasts" id="toasts"></div>
 
   <script src="js/time.js"></script>
   <script src="js/feeds.js"></script>

@@ -364,7 +364,7 @@
     const f = r => isBear ? legEnd + leg * r : legEnd - leg * r;
     setup.ote = { from: f(0.5), to: f(0.786), deep: f(0.886), startIdx: legEndIdx };
 
-    if (rr1 < o.minRR) return { ...setup, state: 'LOW_RR', invalidReason: `RR to 50% is 1:${rr1.toFixed(2)} (< 1:${o.minRR}) — PDF 1 p.29 says skip` };
+    if (rr1 < o.minRR) return { ...setup, state: 'LOW_RR', invalidReason: `RR to 50% equilibrium is 1:${rr1.toFixed(2)} (below 1:${o.minRR} minimum)` };
 
     // 4. Manage
     const m = manage(ltf, entry, isBear, entryP, sl, tp1, tp2, rr1, rr2);
@@ -413,21 +413,21 @@
   /* ---------------- Grading ---------------- */
   function buildChecks(s, o) {
     const checks = [];
-    checks.push({ key: 'c1', title: 'Valid CRT candle (thick body)', src: 'PDF 1 p.7–8', status: 'pass', text: `Body ${(s.bodyRatio * 100).toFixed(0)}% of range · ${s.crtType ? s.crtType.name : ''}` });
+    checks.push({ key: 'c1', title: 'HTF Range Candle (C1)', src: 'Range Spec', status: 'pass', text: `Body ${(s.bodyRatio * 100).toFixed(0)}% of range · ${s.crtType ? s.crtType.name : ''}` });
     if (s.keyLevels) {
       const kl = s.keyLevels[0];
-      checks.push({ key: 'kl', title: 'HTF key level (OB / FVG / OHP / OLP)', src: 'PDF 1 p.9–14', status: kl ? 'pass' : 'fail', text: kl ? s.keyLevels.map(k => k.type).join(' + ') + ` — ${kl.name}` : 'No key level found under this CRT' });
+      checks.push({ key: 'kl', title: 'HTF Key Level (OB / FVG / Liquidity)', src: 'HTF Structure', status: kl ? 'pass' : 'fail', text: kl ? s.keyLevels.map(k => k.type).join(' + ') + ` — ${kl.name}` : 'No HTF key level engaged' });
     }
-    if (s.time) checks.push({ key: 'time', title: 'Time / AMD window', src: 'PDF 2 p.12–14', status: s.time.status, text: s.time.text });
-    if (s.smt) checks.push({ key: 'smt', title: 'CRT SMT divergence', src: 'PDF 2 p.24–28', status: s.smt.status, text: s.smt.text });
+    if (s.time) checks.push({ key: 'time', title: 'Session AMD Window', src: 'Session Timing', status: s.time.status, text: s.time.text });
+    if (s.smt) checks.push({ key: 'smt', title: 'SMT Correlation Check', src: 'SMT Filter', status: s.smt.status, text: s.smt.text });
     if (s.tbsIdx != null) {
-      checks.push({ key: 'tbs', title: 'A+ TBS (2–6 inside candles)', src: 'PDF 1 p.16–17', status: s.insideLTF >= 2 ? 'pass' : 'warn', text: s.insideLTF >= 2 ? `${s.insideLTF} inside candles before the TBS body close` : 'TBS formed without 2–6 inside candles (standard, not A+)' });
+      checks.push({ key: 'tbs', title: 'LTF Inside-Bar Compression', src: 'Compression', status: s.insideLTF >= 2 ? 'pass' : 'warn', text: s.insideLTF >= 2 ? `${s.insideLTF} inside bars prior to TBS close` : 'Direct TBS close (0–1 inside bars)' });
     }
     if (s.rr1 != null) {
-      checks.push({ key: 'rr', title: 'RR to 50% (TP1)', src: 'PDF 1 p.29', status: s.rr1 >= o.minRR ? 'pass' : 'fail', text: `TP1 1:${s.rr1.toFixed(2)} · TP2 1:${s.rr2.toFixed(2)}` });
+      checks.push({ key: 'rr', title: 'Reward-to-Risk to 50% EQ', src: 'Risk Filter', status: s.rr1 >= o.minRR ? 'pass' : 'fail', text: `TP1 ${s.rr1.toFixed(2)}R · TP2 ${s.rr2.toFixed(2)}R` });
     }
     if (s.againstSpike) {
-      checks.push({ key: 'spike', title: 'Trading against spike direction', src: 'Synthetic', status: 'warn', text: 'Boom/Crash/GainX/PainX spikes run against this trade — extra SL buffer applied' });
+      checks.push({ key: 'spike', title: 'Counter-Spike Buffer', src: 'Spike Guard', status: 'warn', text: 'Counter-spike direction — widened stop buffer applied' });
     }
     const applicable = checks.filter(c => c.status !== 'na');
     const fails = applicable.filter(c => c.status === 'fail').length;
@@ -469,8 +469,13 @@
       Object.assign(s, buildChecks(s, o));
       setups.push(s);
     }
-    // Priority: live trade > waiting for trigger/model1 > waiting for sweep > newest finished trade
-    const rank = s => ({ IN_TRADE: 6, TP1_RUNNER: 6, WAIT_TRIGGER: 5, WAIT_MODEL1: 4, WAITING_SWEEP: 3 }[s.state] || (TRADED.has(s.state) ? 2 : 1));
+    // Strongly prioritize setups near the current live market bar so levels match live price
+    const recentCutoff = htf.length - 7;
+    const rank = s => {
+      const isRecent = s.c1Idx >= recentCutoff ? 10 : 0;
+      const stateScore = { IN_TRADE: 6, TP1_RUNNER: 6, WAIT_TRIGGER: 5, WAIT_MODEL1: 4, WAITING_SWEEP: 3 }[s.state] || (TRADED.has(s.state) ? 2 : 1);
+      return isRecent + stateScore;
+    };
     const primary = setups.slice().sort((a, b) => rank(b) - rank(a) || b.c1Idx - a.c1Idx)[0] || null;
     return { primary, setups, opts: o };
   }

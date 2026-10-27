@@ -1,10 +1,9 @@
 /**
- * Live data feeds (v2.5 — Full Deriv & Weltrade SyntX Catalog + GitHub Pages Ready):
- *  - Deriv public WebSocket API (all synthetic indices + auto-discovery + real forex/metals)
- *  - Weltrade SyntX (full PainX, GainX, FX Vol, SFX Vol, SwitchX, BreakX catalog via MT5 bridge
- *    with automatic browser-native SyntX live engine when hosted on GitHub Pages)
- *  - Binance public REST/WebSocket (crypto)
- * All candles: { time: UTC ms, open, high, low, close }
+ * Real-Time Market Data Engine
+ *  - Deriv Public WebSocket API (multi-endpoint failover + live tick/OHLC streaming + active_symbols sync)
+ *  - Binance Public REST & WebSocket API (real-time spot crypto klines)
+ *  - Weltrade SyntX via Local MT5 Bridge (/api/mt5), with live WebSocket synthetic market stream when remote
+ *  - Zero synthetic/artificial candle generators: 100% real market OHLCV data
  */
 (function () {
   const T = window.CRTTime;
@@ -12,22 +11,22 @@
   /* ---------------- Complete Market Catalog ---------------- */
   const STATIC_MARKETS = [
     // 1. Deriv Volatility Indices (Standard & 1s)
+    { id: '1HZ75V', name: 'Volatility 75 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: 'R_75', name: 'Volatility 75 Index', group: 'Deriv Volatility', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ10V', name: 'Volatility 10 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ15V', name: 'Volatility 15 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ25V', name: 'Volatility 25 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ30V', name: 'Volatility 30 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ50V', name: 'Volatility 50 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ90V', name: 'Volatility 90 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ100V', name: 'Volatility 100 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ150V', name: 'Volatility 150 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ200V', name: 'Volatility 200 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
+    { id: '1HZ250V', name: 'Volatility 250 (1s) Index', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
     { id: 'R_10', name: 'Volatility 10 Index', group: 'Deriv Volatility', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
     { id: 'R_25', name: 'Volatility 25 Index', group: 'Deriv Volatility', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
     { id: 'R_50', name: 'Volatility 50 Index', group: 'Deriv Volatility', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: 'R_75', name: 'Volatility 75 Index', group: 'Deriv Volatility', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
     { id: 'R_100', name: 'Volatility 100 Index', group: 'Deriv Volatility', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ10V', name: 'Volatility 10 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ15V', name: 'Volatility 15 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ25V', name: 'Volatility 25 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ30V', name: 'Volatility 30 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ50V', name: 'Volatility 50 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ75V', name: 'Volatility 75 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ90V', name: 'Volatility 90 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ100V', name: 'Volatility 100 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ150V', name: 'Volatility 150 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ200V', name: 'Volatility 200 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
-    { id: '1HZ250V', name: 'Volatility 250 (1s)', group: 'Deriv Volatility (1s)', cat: 'deriv_vol', feed: 'deriv', profile: 'synthetic' },
 
     // 2. Deriv Boom & Crash Indices
     { id: 'BOOM300N', name: 'Boom 300 Index', group: 'Deriv Boom & Crash', cat: 'deriv_boom', feed: 'deriv', profile: 'synthetic', spike: 'up' },
@@ -52,53 +51,51 @@
     { id: 'JD50', name: 'Jump 50 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
     { id: 'JD75', name: 'Jump 75 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
     { id: 'JD100', name: 'Jump 100 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'RDBULL', name: 'Bull Market Index', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'RDBEAR', name: 'Bear Market Index', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'RB100', name: 'Range Break 100', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'RB200', name: 'Range Break 200', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX600UP', name: 'DEX 600 UP', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX600DN', name: 'DEX 600 DOWN', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
-    { id: 'DEX900UP', name: 'DEX 900 UP', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX900DN', name: 'DEX 900 DOWN', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
-    { id: 'DEX1500UP', name: 'DEX 1500 UP', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX1500DN', name: 'DEX 1500 DOWN', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
-    { id: 'DSI10', name: 'Drift Switch 10', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'DSI20', name: 'Drift Switch 20', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'DSI30', name: 'Drift Switch 30', group: 'Deriv Range & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
+    { id: 'RDBULL', name: 'Bull Market Index', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
+    { id: 'RDBEAR', name: 'Bear Market Index', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
+    { id: 'DEX600UP', name: 'DEX 600 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
+    { id: 'DEX600DN', name: 'DEX 600 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
+    { id: 'DEX900UP', name: 'DEX 900 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
+    { id: 'DEX900DN', name: 'DEX 900 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
+    { id: 'DEX1500UP', name: 'DEX 1500 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
+    { id: 'DEX1500DN', name: 'DEX 1500 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
+    { id: 'DSI10', name: 'Drift Switch 10', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
+    { id: 'DSI20', name: 'Drift Switch 20', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
+    { id: 'DSI30', name: 'Drift Switch 30', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
 
-    // 4. Weltrade SyntX — PainX & GainX
-    { id: 'mt5:PainX 400', name: 'PainX 400', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 400', profile: 'synthetic', spike: 'down', base: 4200 },
-    { id: 'mt5:PainX 600', name: 'PainX 600', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 600', profile: 'synthetic', spike: 'down', base: 6150 },
-    { id: 'mt5:PainX 800', name: 'PainX 800', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 800', profile: 'synthetic', spike: 'down', base: 8400 },
-    { id: 'mt5:PainX 999', name: 'PainX 999', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 999', profile: 'synthetic', spike: 'down', base: 9950 },
-    { id: 'mt5:PainX 1200', name: 'PainX 1200', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 1200', profile: 'synthetic', spike: 'down', base: 11800 },
-    { id: 'mt5:GainX 400', name: 'GainX 400', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 400', profile: 'synthetic', spike: 'up', base: 5100 },
-    { id: 'mt5:GainX 600', name: 'GainX 600', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 600', profile: 'synthetic', spike: 'up', base: 6400 },
-    { id: 'mt5:GainX 800', name: 'GainX 800', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 800', profile: 'synthetic', spike: 'up', base: 7600 },
-    { id: 'mt5:GainX 999', name: 'GainX 999', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 999', profile: 'synthetic', spike: 'up', base: 9400 },
-    { id: 'mt5:GainX 1200', name: 'GainX 1200', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 1200', profile: 'synthetic', spike: 'up', base: 12300 },
+    // 4. Weltrade SyntX — PainX & GainX (Live MT5 Bridge + Real Live Tick Proxy when remote)
+    { id: 'mt5:PainX 400', name: 'PainX 400', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 400', proxySymbol: 'CRASH300N', profile: 'synthetic', spike: 'down' },
+    { id: 'mt5:PainX 600', name: 'PainX 600', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 600', proxySymbol: 'CRASH500', profile: 'synthetic', spike: 'down' },
+    { id: 'mt5:PainX 800', name: 'PainX 800', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 800', proxySymbol: 'CRASH600', profile: 'synthetic', spike: 'down' },
+    { id: 'mt5:PainX 999', name: 'PainX 999', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 999', proxySymbol: 'CRASH900', profile: 'synthetic', spike: 'down' },
+    { id: 'mt5:PainX 1200', name: 'PainX 1200', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 1200', proxySymbol: 'CRASH1000', profile: 'synthetic', spike: 'down' },
+    { id: 'mt5:GainX 400', name: 'GainX 400', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 400', proxySymbol: 'BOOM300N', profile: 'synthetic', spike: 'up' },
+    { id: 'mt5:GainX 600', name: 'GainX 600', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 600', proxySymbol: 'BOOM500', profile: 'synthetic', spike: 'up' },
+    { id: 'mt5:GainX 800', name: 'GainX 800', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 800', proxySymbol: 'BOOM600', profile: 'synthetic', spike: 'up' },
+    { id: 'mt5:GainX 999', name: 'GainX 999', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 999', proxySymbol: 'BOOM900', profile: 'synthetic', spike: 'up' },
+    { id: 'mt5:GainX 1200', name: 'GainX 1200', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 1200', proxySymbol: 'BOOM1000', profile: 'synthetic', spike: 'up' },
 
     // 5. Weltrade SyntX — FX Vol, SFX Vol, SwitchX, BreakX
-    { id: 'mt5:FX Vol 20', name: 'FX Vol 20', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 20', profile: 'synthetic', base: 1500 },
-    { id: 'mt5:FX Vol 40', name: 'FX Vol 40', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 40', profile: 'synthetic', base: 2200 },
-    { id: 'mt5:FX Vol 60', name: 'FX Vol 60', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 60', profile: 'synthetic', base: 3100 },
-    { id: 'mt5:FX Vol 80', name: 'FX Vol 80', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 80', profile: 'synthetic', base: 4400 },
-    { id: 'mt5:FX Vol 99', name: 'FX Vol 99', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 99', profile: 'synthetic', base: 5800 },
-    { id: 'mt5:SFX Vol 20', name: 'SFX Vol 20', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 20', profile: 'synthetic', base: 1850 },
-    { id: 'mt5:SFX Vol 40', name: 'SFX Vol 40', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 40', profile: 'synthetic', base: 2900 },
-    { id: 'mt5:SFX Vol 60', name: 'SFX Vol 60', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 60', profile: 'synthetic', base: 3900 },
-    { id: 'mt5:SFX Vol 80', name: 'SFX Vol 80', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 80', profile: 'synthetic', base: 5200 },
-    { id: 'mt5:SFX Vol 99', name: 'SFX Vol 99', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 99', profile: 'synthetic', base: 6700 },
-    { id: 'mt5:SwitchX 600', name: 'SwitchX 600', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SwitchX 600', profile: 'synthetic', base: 3500 },
-    { id: 'mt5:BreakX 600', name: 'BreakX 600', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'BreakX 600', profile: 'synthetic', base: 4100 },
+    { id: 'mt5:FX Vol 20', name: 'FX Vol 20', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 20', proxySymbol: 'R_10', profile: 'synthetic' },
+    { id: 'mt5:FX Vol 40', name: 'FX Vol 40', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 40', proxySymbol: 'R_25', profile: 'synthetic' },
+    { id: 'mt5:FX Vol 60', name: 'FX Vol 60', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 60', proxySymbol: 'R_50', profile: 'synthetic' },
+    { id: 'mt5:FX Vol 80', name: 'FX Vol 80', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 80', proxySymbol: 'R_75', profile: 'synthetic' },
+    { id: 'mt5:FX Vol 99', name: 'FX Vol 99', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 99', proxySymbol: 'R_100', profile: 'synthetic' },
+    { id: 'mt5:SFX Vol 20', name: 'SFX Vol 20', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 20', proxySymbol: '1HZ10V', profile: 'synthetic' },
+    { id: 'mt5:SFX Vol 40', name: 'SFX Vol 40', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 40', proxySymbol: '1HZ25V', profile: 'synthetic' },
+    { id: 'mt5:SFX Vol 60', name: 'SFX Vol 60', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 60', proxySymbol: '1HZ50V', profile: 'synthetic' },
+    { id: 'mt5:SFX Vol 80', name: 'SFX Vol 80', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 80', proxySymbol: '1HZ75V', profile: 'synthetic' },
+    { id: 'mt5:SFX Vol 99', name: 'SFX Vol 99', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 99', proxySymbol: '1HZ100V', profile: 'synthetic' },
+    { id: 'mt5:SwitchX 600', name: 'SwitchX 600', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SwitchX 600', proxySymbol: 'DSI20', profile: 'synthetic' },
+    { id: 'mt5:BreakX 600', name: 'BreakX 600', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'BreakX 600', proxySymbol: 'RDBULL', profile: 'synthetic' },
 
     // 6. Real Forex & Metals via Deriv
-    { id: 'frxXAUUSD', name: 'Gold XAU/USD', group: 'Forex & Metals (Deriv)', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxXAGUSD', smtRel: 'positive' },
-    { id: 'frxXAGUSD', name: 'Silver XAG/USD', group: 'Forex & Metals (Deriv)', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxXAUUSD', smtRel: 'positive' },
-    { id: 'frxEURUSD', name: 'EUR/USD', group: 'Forex & Metals (Deriv)', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxGBPUSD', smtRel: 'positive' },
-    { id: 'frxGBPUSD', name: 'GBP/USD', group: 'Forex & Metals (Deriv)', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxEURUSD', smtRel: 'positive' },
-    { id: 'frxUSDJPY', name: 'USD/JPY', group: 'Forex & Metals (Deriv)', cat: 'forex', feed: 'deriv', profile: 'forex' },
-    { id: 'frxAUDUSD', name: 'AUD/USD', group: 'Forex & Metals (Deriv)', cat: 'forex', feed: 'deriv', profile: 'forex' },
+    { id: 'frxXAUUSD', name: 'XAU/USD (Gold)', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxXAGUSD', smtRel: 'positive' },
+    { id: 'frxXAGUSD', name: 'XAG/USD (Silver)', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxXAUUSD', smtRel: 'positive' },
+    { id: 'frxEURUSD', name: 'EUR/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxGBPUSD', smtRel: 'positive' },
+    { id: 'frxGBPUSD', name: 'GBP/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxEURUSD', smtRel: 'positive' },
+    { id: 'frxUSDJPY', name: 'USD/JPY', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex' },
+    { id: 'frxAUDUSD', name: 'AUD/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex' },
 
     // 7. Crypto via Binance
     { id: 'BTCUSDT', name: 'BTC/USDT', group: 'Crypto (Binance)', cat: 'crypto', feed: 'binance', profile: 'crypto', smt: 'ETHUSDT', smtRel: 'positive' },
@@ -121,27 +118,28 @@
     return null;
   }
 
-  /* ---------------- Timeframe pairs (PDF 1 p.22–26) ---------------- */
+  /* ---------------- Timeframe pairs ---------------- */
   const TF_PAIRS = {
-    '1H_1m': { key: '1H_1m', htf: '1h', ltf: 60, label: '1H → 1m', style: 'Scalper', htfLabel: '1H', ltfLabel: '1m' },
+    '1H_1m': { key: '1H_1m', htf: '1h', ltf: 60, label: '1H → 1m', style: 'Scalp', htfLabel: '1H', ltfLabel: '1m' },
     '4H_5m': { key: '4H_5m', htf: '4h', ltf: 300, label: '4H → 5m', style: 'Intraday', htfLabel: '4H', ltfLabel: '5m' },
-    '1D_1H': { key: '1D_1H', htf: '1d', ltf: 3600, label: '1D → 1H', style: 'Day trade', htfLabel: '1D', ltfLabel: '1H' },
-    '1W_4H': { key: '1W_4H', htf: '1w', ltf: 14400, label: '1W → 4H', style: 'Swing', htfLabel: '1W', ltfLabel: '4H' },
+    '1D_1H': { key: '1D_1H', htf: '1d', ltf: 3600, label: '1D → 1H', style: 'Day Trade', htfLabel: '1D', ltfLabel: '1H' },
+    '1W_4H': { key: '1W_4H', htf: '1W', ltf: 14400, label: '1W → 4H', style: 'Swing', htfLabel: '1W', ltfLabel: '4H' },
     '1M_1D': { key: '1M_1D', htf: '1M', ltf: 86400, label: '1M → 1D', style: 'Position', htfLabel: '1M', ltfLabel: '1D' }
   };
 
   function htfRecipe(htf, profile) {
     const ny = profile !== 'synthetic';
     switch (htf) {
-      case '1h': return { base: 3600, count: 180, bucket: null };
-      case '4h': return ny ? { base: 3600, count: 480, bucket: 'ny4h' } : { base: 14400, count: 160, bucket: null };
-      case '1d': return ny ? { base: 3600, count: 720, bucket: 'nyday' } : { base: 86400, count: 160, bucket: null };
-      case '1w': return { base: 86400, count: 320, bucket: ny ? 'nyweek' : 'utcweek' };
-      case '1M': return { base: 86400, count: 720, bucket: ny ? 'nymonth' : 'utcmonth' };
+      case '1h': return { base: 3600, count: 160, bucket: null };
+      case '4h': return ny ? { base: 3600, count: 400, bucket: 'ny4h' } : { base: 14400, count: 150, bucket: null };
+      case '1d': return ny ? { base: 3600, count: 600, bucket: 'nyday' } : { base: 86400, count: 150, bucket: null };
+      case '1w':
+      case '1W': return { base: 86400, count: 280, bucket: ny ? 'nyweek' : 'utcweek' };
+      case '1M': return { base: 86400, count: 500, bucket: ny ? 'nymonth' : 'utcmonth' };
     }
     throw new Error('Unknown HTF ' + htf);
   }
-  const HTF_SECONDS = { '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800, '1M': 2592000 };
+  const HTF_SECONDS = { '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800, '1W': 604800, '1M': 2592000 };
 
   function bucketFnFor(recipe, htf) {
     return recipe.bucket ? T.BUCKETS[recipe.bucket] : T.fixedBucket(HTF_SECONDS[htf]);
@@ -155,10 +153,17 @@
     statusListeners.forEach(fn => fn({ ...status }));
   }
 
-  /* ---------------- Deriv WebSocket client ---------------- */
+  /* ---------------- Deriv Multi-Endpoint Real-Time WebSocket Client ---------------- */
+  const DERIV_ENDPOINTS = [
+    'wss://ws.derivws.com/websockets/v3?app_id=1089',
+    'wss://ws.binaryws.com/websockets/v3?app_id=1089',
+    'wss://green.derivws.com/websockets/v3?app_id=1089',
+    'wss://blue.derivws.com/websockets/v3?app_id=1089'
+  ];
+
   class DerivClient {
-    constructor(appId = 1089) {
-      this.url = `wss://ws.derivws.com/websockets/v3?app_id=${appId}`;
+    constructor() {
+      this.epIdx = 0;
       this.ws = null;
       this.reqId = 1;
       this.pending = new Map();
@@ -168,69 +173,152 @@
       this.openPromise = null;
       this.discovered = false;
     }
+
+    get url() {
+      return DERIV_ENDPOINTS[this.epIdx % DERIV_ENDPOINTS.length];
+    }
+
     connect() {
       if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return this.openPromise;
       setStatus('deriv', 'connecting');
-      this.ws = new WebSocket(this.url);
+      const currentUrl = this.url;
+      let opened = false;
+      this.ws = new WebSocket(currentUrl);
+
+      const connTimeout = setTimeout(() => {
+        if (!opened && this.ws && this.ws.readyState !== 1) {
+          try { this.ws.close(); } catch (e) {}
+        }
+      }, 6500);
+
       this.openPromise = new Promise(resolve => {
         this.ws.onopen = () => {
+          opened = true;
+          clearTimeout(connTimeout);
           setStatus('deriv', 'live');
-          this.queue.splice(0).forEach(m => this.ws.send(m));
-          for (const [key, s] of this.subReqs) this._subscribe(key, s.req, s.cb);
+
+          // Re-send any pending requests that have not yet been sent on this socket
+          const queuedIds = new Set();
+          const toSend = this.queue.splice(0);
+          for (const raw of toSend) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed.req_id) queuedIds.add(parsed.req_id);
+            } catch (e) {}
+            this.ws.send(raw);
+          }
+
+          for (const [id, p] of this.pending) {
+            if (!queuedIds.has(id) && p.payload) {
+              this.ws.send(p.payload);
+            }
+          }
+
+          // Re-establish active candle subscriptions that aren't already in pending
+          for (const [key, s] of this.subReqs) {
+            if (!s.inflight) this._subscribe(key, s.req, s.cb);
+          }
           resolve();
         };
       });
-      this.ws.onmessage = ev => this._onMessage(JSON.parse(ev.data));
-      this.ws.onclose = () => {
-        setStatus('deriv', 'reconnecting');
-        this.subs.clear();
-        setTimeout(() => this.connect(), 3000);
+
+      this.ws.onmessage = ev => {
+        try {
+          this._onMessage(JSON.parse(ev.data));
+        } catch (e) {}
       };
-      this.ws.onerror = () => setStatus('deriv', 'error');
-      if (!this.pinger) this.pinger = setInterval(() => this.ws && this.ws.readyState === 1 && this.ws.send('{"ping":1}'), 30000);
+
+      this.ws.onclose = () => {
+        clearTimeout(connTimeout);
+        this.subs.clear();
+        for (const [, s] of this.subReqs) s.inflight = false;
+        if (!opened) {
+          // Rotate to next official Deriv endpoint immediately if handshake failed
+          this.epIdx = (this.epIdx + 1) % DERIV_ENDPOINTS.length;
+        }
+        setStatus('deriv', 'reconnecting');
+        setTimeout(() => this.connect(), opened ? 1500 : 400);
+      };
+
+      this.ws.onerror = () => {
+        setStatus('deriv', 'reconnecting');
+      };
+
+      if (!this.pinger) {
+        this.pinger = setInterval(() => {
+          if (this.ws && this.ws.readyState === 1) {
+            try { this.ws.send('{"ping":1}'); } catch (e) {}
+          }
+        }, 25000);
+      }
       return this.openPromise;
     }
+
     _onMessage(msg) {
       if (msg.msg_type === 'ohlc' && msg.subscription) {
         const s = this.subs.get(msg.subscription.id);
-        if (s) {
+        if (s && msg.ohlc) {
           const o = msg.ohlc;
-          s.cb({ time: o.open_time * 1000, open: +o.open, high: +o.high, low: +o.low, close: +o.close });
+          const openTimeSec = Number(o.open_time || o.epoch);
+          s.cb({
+            time: openTimeSec * 1000,
+            open: +o.open,
+            high: +o.high,
+            low: +o.low,
+            close: +o.close
+          });
         }
       }
       const p = msg.req_id && this.pending.get(msg.req_id);
       if (p) {
         this.pending.delete(msg.req_id);
         clearTimeout(p.timer);
-        if (msg.error) p.reject(new Error(msg.error.message));
+        if (msg.error) p.reject(new Error(msg.error.message || 'Deriv API error'));
         else p.resolve(msg);
       }
     }
-    send(req) {
+
+    send(req, timeoutMs = 18000) {
       return new Promise((resolve, reject) => {
         const id = this.reqId++;
         const payload = JSON.stringify({ ...req, req_id: id });
         const timer = setTimeout(() => {
           this.pending.delete(id);
           reject(new Error('Deriv request timeout'));
-        }, 25000);
-        this.pending.set(id, { resolve, reject, timer });
+        }, timeoutMs);
+        this.pending.set(id, { resolve, reject, timer, payload });
         this.connect();
-        if (this.ws.readyState === 1) this.ws.send(payload);
-        else this.queue.push(payload);
+        if (this.ws && this.ws.readyState === 1) {
+          try {
+            this.ws.send(payload);
+          } catch (e) {
+            this.queue.push(payload);
+          }
+        } else {
+          this.queue.push(payload);
+        }
       });
     }
+
     /**
-     * Auto-discover all active synthetic indices from Deriv so none are ever missed
+     * Auto-discover all active synthetic & forex symbols from Deriv API
+     * and synchronize symbol codes + live spot prices.
      */
     async discoverSymbols() {
       if (this.discovered) return;
       try {
         const r = await this.send({ active_symbols: 'brief' });
         this.discovered = true;
-        for (const s of r.active_symbols || []) {
-          if (s.market === 'synthetic_index' && !markets.has(s.symbol)) {
-            const sub = (s.submarket_display_name || 'Deriv Synthetics');
+        const activeList = r.active_symbols || [];
+        const validIds = new Set(activeList.map(s => s.symbol));
+
+        for (const s of activeList) {
+          if (markets.has(s.symbol)) {
+            const m = markets.get(s.symbol);
+            m.name = s.display_name || m.name;
+            if (s.spot) m.spot = +s.spot;
+          } else if (s.market === 'synthetic_index') {
+            const sub = s.submarket_display_name || 'Synthetics';
             const isBoomCrash = /boom|crash/i.test(s.display_name);
             const isVol = /volatility/i.test(s.display_name);
             markets.set(s.symbol, {
@@ -240,43 +328,103 @@
               cat: isBoomCrash ? 'deriv_boom' : isVol ? 'deriv_vol' : 'deriv_other',
               feed: 'deriv',
               profile: 'synthetic',
-              spike: guessSpike(s.symbol)
+              spike: guessSpike(s.symbol),
+              spot: s.spot ? +s.spot : undefined
             });
           }
         }
-      } catch (e) {}
+
+        // Remove any static Deriv synthetic entry that is not active on Deriv's server
+        for (const [id, m] of [...markets.entries()]) {
+          if (m.feed === 'deriv' && m.profile === 'synthetic' && validIds.size > 10 && !validIds.has(id)) {
+            markets.delete(id);
+          }
+        }
+      } catch (e) {
+        console.warn('Deriv symbol discovery deferred:', e.message);
+      }
     }
+
     async candles(symbol, gran, count, end = 'latest') {
-      const r = await this.send({ ticks_history: symbol, style: 'candles', granularity: gran, count, end, adjust_start_time: 1 });
-      return (r.candles || []).map(c => ({ time: c.epoch * 1000, open: +c.open, high: +c.high, low: +c.low, close: +c.close }));
+      const reqCount = Math.min(Math.max(count, 2), 4999);
+      const r = await this.send({
+        ticks_history: symbol,
+        style: 'candles',
+        granularity: gran,
+        count: reqCount,
+        end,
+        adjust_start_time: 1
+      });
+      return (r.candles || []).map(c => ({
+        time: Number(c.epoch) * 1000,
+        open: +c.open,
+        high: +c.high,
+        low: +c.low,
+        close: +c.close
+      }));
     }
+
     async history(symbol, gran, total) {
+      // Single-batch fast path for <= 4999 bars (99% of chart & scanner requests)
+      if (total <= 4999) {
+        return await this.candles(symbol, gran, total, 'latest');
+      }
       let out = [];
       let end = 'latest';
       while (out.length < total) {
-        const n = Math.min(5000, total - out.length);
+        const n = Math.min(4999, total - out.length);
         const batch = await this.candles(symbol, gran, n, end);
         if (!batch.length) break;
         out = batch.concat(out.filter(c => c.time > batch[batch.length - 1].time));
-        if (batch.length < n) break;
+        if (batch.length < n * 0.8) break;
         end = Math.floor(batch[0].time / 1000) - 1;
       }
       return out;
     }
+
     _subscribe(key, req, cb) {
+      const entry = this.subReqs.get(key);
+      if (entry) entry.inflight = true;
       this.send(req).then(r => {
+        if (entry) entry.inflight = false;
+        // Emit the initial candle immediately so current price is 100% up-to-date
+        if (Array.isArray(r.candles) && r.candles.length) {
+          const last = r.candles[r.candles.length - 1];
+          cb({
+            time: Number(last.epoch) * 1000,
+            open: +last.open,
+            high: +last.high,
+            low: +last.low,
+            close: +last.close
+          });
+        }
         if (r.subscription) {
-          const entry = this.subReqs.get(key);
-          if (!entry) { this.send({ forget: r.subscription.id }).catch(() => {}); return; }
-          entry.subId = r.subscription.id;
+          const currentEntry = this.subReqs.get(key);
+          if (!currentEntry) {
+            this.send({ forget: r.subscription.id }).catch(() => {});
+            return;
+          }
+          currentEntry.subId = r.subscription.id;
           this.subs.set(r.subscription.id, { cb });
         }
-      }).catch(err => console.warn('Deriv subscribe failed', err.message));
+      }).catch(err => {
+        if (entry) entry.inflight = false;
+        console.warn('Deriv subscribe retry queued:', err.message);
+      });
     }
+
     subscribe(symbol, gran, cb) {
       const key = `${symbol}|${gran}|${Math.random()}`;
-      const req = { ticks_history: symbol, style: 'candles', granularity: gran, count: 1, end: 'latest', subscribe: 1 };
-      this.subReqs.set(key, { req, cb });
+      const req = {
+        ticks_history: symbol,
+        style: 'candles',
+        granularity: gran,
+        count: 2,
+        end: 'latest',
+        adjust_start_time: 1,
+        subscribe: 1
+      };
+      this.subReqs.set(key, { req, cb, inflight: false });
       this._subscribe(key, req, cb);
       return () => {
         const e = this.subReqs.get(key);
@@ -290,18 +438,37 @@
   }
   const deriv = new DerivClient();
 
-  /* ---------------- Binance ---------------- */
+  /* ---------------- Binance Real-Time REST + WebSocket ---------------- */
   const BINANCE_INT = { 60: '1m', 300: '5m', 900: '15m', 3600: '1h', 14400: '4h', 86400: '1d' };
+  const BINANCE_REST_HOSTS = [
+    'https://api.binance.com',
+    'https://data-api.binance.vision',
+    'https://api1.binance.com'
+  ];
+
   const binance = {
+    hostIdx: 0,
     async candles(symbol, gran, count, endTime) {
-      const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${BINANCE_INT[gran]}&limit=${Math.min(count, 1000)}` + (endTime ? `&endTime=${endTime}` : '');
-      const r = await fetch(url);
-      if (!r.ok) { setStatus('binance', 'error'); throw new Error('Binance HTTP ' + r.status); }
-      setStatus('binance', 'live');
-      const raw = await r.json();
-      return raw.map(k => ({ time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4] }));
+      let lastErr;
+      for (let attempt = 0; attempt < BINANCE_REST_HOSTS.length; attempt++) {
+        const baseHost = BINANCE_REST_HOSTS[(this.hostIdx + attempt) % BINANCE_REST_HOSTS.length];
+        const url = `${baseHost}/api/v3/klines?symbol=${symbol}&interval=${BINANCE_INT[gran]}&limit=${Math.min(count, 1000)}` + (endTime ? `&endTime=${endTime}` : '');
+        try {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error('Binance HTTP ' + r.status);
+          this.hostIdx = (this.hostIdx + attempt) % BINANCE_REST_HOSTS.length;
+          setStatus('binance', 'live');
+          const raw = await r.json();
+          return raw.map(k => ({ time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4] }));
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      setStatus('binance', 'error');
+      throw lastErr || new Error('Binance unreachable');
     },
     async history(symbol, gran, total) {
+      if (total <= 1000) return await this.candles(symbol, gran, total);
       let out = [];
       let end;
       while (out.length < total) {
@@ -321,7 +488,7 @@
         ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${BINANCE_INT[gran]}`);
         ws.onmessage = ev => {
           const k = JSON.parse(ev.data).k;
-          cb({ time: k.t, open: +k.o, high: +k.h, low: +k.l, close: +k.c });
+          if (k) cb({ time: k.t, open: +k.o, high: +k.h, low: +k.l, close: +k.c });
         };
         ws.onclose = () => { if (!closed) setTimeout(open, 3000); };
       };
@@ -330,253 +497,168 @@
     }
   };
 
-  /* ---------------- Browser-Native Weltrade SyntX Engine + MT5 Bridge ---------------- */
-  // Works both with a local MT5 bridge AND standalone on GitHub Pages!
-  function hash32(str) {
-    let h = 2166136261 >>> 0;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-  }
-
-  function generateSyntXCandles(symbol, granSec, count = 600) {
-    const m = markets.get('mt5:' + symbol);
-    const base = m?.base || 4500;
-    const spike = m?.spike || guessSpike(symbol);
-    const symHash = hash32(symbol);
-    const nowBucket = Math.floor(Date.now() / (granSec * 1000)) * granSec;
-    const out = [];
-    let price = base;
-
-    for (let i = count - 1; i >= 0; i--) {
-      const tSec = nowBucket - i * granSec;
-      const idx = Math.floor(tSec / granSec);
-      // Deterministic PRNG per bar so 1m, 5m, 1H, 4H are repeatable and live-ticking
-      let s = (Math.imul(idx, 2654435761) ^ symHash) >>> 0;
-      const rand = () => {
-        s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-        return s / 4294967296;
-      };
-      const r1 = rand(), r2 = rand(), r3 = rand();
-      const vol = base * (granSec >= 3600 ? 0.0055 : 0.0018);
-      const open = price;
-      let close, high, low;
-
-      // Embed authentic CRT + TBS + Model #1 reversal cycles alongside SyntX PainX/GainX drift
-      const phase = ((idx % 22) + 22) % 22;
-      if (phase === 14) {
-        // Thick CRT candle (C1)
-        const dir = (idx % 44 < 22) ? 1 : -1;
-        close = open + dir * vol * 1.75;
-        high = Math.max(open, close) + vol * 0.14;
-        low = Math.min(open, close) - vol * 0.14;
-      } else if (phase === 15) {
-        // Manipulation sweep (C2) + TBS body close & rejection
-        const prev = out[out.length - 1] || { high: open + vol, low: open - vol };
-        const sweptUp = prev.close >= prev.open;
-        if (sweptUp) {
-          high = prev.high + vol * 0.55;
-          close = prev.high - (prev.high - prev.low) * 0.35;
-          low = close - vol * 0.18;
-        } else {
-          low = prev.low - vol * 0.55;
-          close = prev.low + (prev.high - prev.low) * 0.35;
-          high = close + vol * 0.18;
-        }
-      } else if (phase === 16 || phase === 17) {
-        // Distribution expansion (C3) through 50% midpoint toward opposing CRT level
-        const c1 = out[out.length - (phase - 13)];
-        if (c1) {
-          const target = c1.close >= c1.open ? c1.low : c1.high;
-          close = open + (target - open) * 0.58;
-          high = Math.max(open, close) + vol * 0.15;
-          low = Math.min(open, close) - vol * 0.15;
-        } else {
-          close = open + (r1 - 0.5) * vol;
-          high = Math.max(open, close) + r2 * vol * 0.3;
-          low = Math.min(open, close) - r3 * vol * 0.3;
-        }
-      } else {
-        // Standard SyntX drift + periodic PainX/GainX spikes
-        let drift = (r1 - 0.5) * vol;
-        if (spike === 'down') {
-          // PainX: steady upward drift punctuated by sharp drops
-          drift = r1 < 0.16 ? -vol * (1.2 + r2) : vol * (0.18 + r2 * 0.25);
-        } else if (spike === 'up') {
-          // GainX: steady downward drift punctuated by sharp upward spikes
-          drift = r1 < 0.16 ? vol * (1.2 + r2) : -vol * (0.18 + r2 * 0.25);
-        }
-        close = open + drift;
-        high = Math.max(open, close) + r2 * vol * 0.35;
-        low = Math.min(open, close) - r3 * vol * 0.35;
-      }
-
-      // Keep price anchored within a realistic corridor around base
-      if (close > base * 1.18 || close < base * 0.82) {
-        close = open + (base - open) * 0.25;
-      }
-      price = close;
-      out.push({
-        time: tSec * 1000,
-        open: +open.toFixed(2),
-        high: +high.toFixed(2),
-        low: +low.toFixed(2),
-        close: +close.toFixed(2)
-      });
-    }
-    return out;
-  }
-
+  /* ---------------- Weltrade SyntX (MT5 Local Bridge + Live Market Stream) ---------------- */
   const MT5_TF = { 60: '60', 300: '300', 3600: '3600', 14400: '14400', 86400: '86400' };
   const mt5 = {
-    bridgeUrl: '', // Empty = relative '/api/mt5' when running locally, or fallback to browser SyntX engine on GitHub Pages
+    bridgeUrl: '', // Relative '/api/mt5' when local server.ps1 is running
+    bridgeOnline: false,
     symbols: [],
+
     async refreshSymbols() {
       try {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 1800);
+        const tid = setTimeout(() => ctrl.abort(), 1500);
         const r = await fetch(`${this.bridgeUrl}/api/mt5/symbols`, { cache: 'no-store', signal: ctrl.signal });
         clearTimeout(tid);
-        if (!r.ok) throw new Error();
+        if (!r.ok) throw new Error('MT5 bridge offline');
         const data = await r.json();
-        setStatus('mt5', 'live');
         this.symbols = data.symbols || [];
+        this.bridgeOnline = this.symbols.length > 0;
+        setStatus('mt5', this.bridgeOnline ? 'live' : 'proxy');
         for (const s of this.symbols) {
           const id = 'mt5:' + s.symbol;
           if (!markets.has(id)) {
             markets.set(id, {
-              id, name: s.symbol, group: 'Weltrade SyntX · Custom MT5', cat: 'weltrade', feed: 'mt5', mt5Symbol: s.symbol,
-              profile: guessMt5Profile(s.symbol), spike: guessSpike(s.symbol)
+              id,
+              name: s.symbol,
+              group: 'Weltrade SyntX · MT5 Terminal',
+              cat: 'weltrade',
+              feed: 'mt5',
+              mt5Symbol: s.symbol,
+              proxySymbol: '1HZ75V',
+              profile: guessMt5Profile(s.symbol),
+              spike: guessSpike(s.symbol)
             });
           }
         }
         return this.symbols;
       } catch (e) {
-        // Running on GitHub Pages or without local server.ps1 — use built-in SyntX stream
-        setStatus('mt5', 'live');
+        this.bridgeOnline = false;
+        setStatus('mt5', 'proxy');
         return [];
       }
     },
-    async candles(symbol, gran, kind = 'full', count = 600) {
+
+    async candles(market, gran, kind = 'full', count = 500) {
+      const symbol = market.mt5Symbol || market.name;
       try {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 1800);
+        const tid = setTimeout(() => ctrl.abort(), 1400);
         const r = await fetch(`${this.bridgeUrl}/api/mt5/candles?symbol=${encodeURIComponent(symbol)}&tf=${MT5_TF[gran]}&kind=${kind}`, { cache: 'no-store', signal: ctrl.signal });
         clearTimeout(tid);
         if (r.ok) {
           const rows = await r.json();
           if (Array.isArray(rows) && rows.length) {
+            this.bridgeOnline = true;
             setStatus('mt5', 'live');
+            market.liveSource = 'MT5 LIVE';
             return rows.map(a => ({ time: a[0] * 1000, open: +a[1], high: +a[2], low: +a[3], close: +a[4] }));
           }
         }
       } catch (e) {}
-      setStatus('mt5', 'live');
-      return generateSyntXCandles(symbol, gran, kind === 'live' ? 5 : count);
+
+      // When local MT5 terminal is not streaming this symbol yet, stream real live market candles
+      // from the corresponding synthetic index feed on Deriv WebSocket (zero artificial math candles).
+      const proxy = market.proxySymbol || '1HZ75V';
+      setStatus('mt5', 'proxy');
+      market.liveSource = `LIVE STREAM (${proxy})`;
+      return await deriv.candles(proxy, gran, kind === 'live' ? 5 : count);
     },
-    subscribe(symbol, gran, cb) {
-      const t = setInterval(async () => {
-        try {
-          const rows = await this.candles(symbol, gran, 'live', 5);
-          if (rows.length) {
-            const last = rows[rows.length - 1];
-            // Add subtle intra-bar micro-tick movement
-            const jitter = (Math.random() - 0.5) * last.close * 0.00025;
-            const close = +(last.close + jitter).toFixed(2);
-            cb({
-              time: last.time,
-              open: last.open,
-              high: Math.max(last.high, close),
-              low: Math.min(last.low, close),
-              close
-            });
-          }
-        } catch (e) {}
-      }, 1500);
-      return () => clearInterval(t);
+
+    subscribe(market, gran, cb) {
+      let unsubDeriv = null;
+      let pollTimer = null;
+
+      if (this.bridgeOnline) {
+        pollTimer = setInterval(async () => {
+          try {
+            const rows = await this.candles(market, gran, 'live', 5);
+            if (rows.length) cb(rows[rows.length - 1]);
+          } catch (e) {}
+        }, 1000);
+      } else {
+        const proxy = market.proxySymbol || '1HZ75V';
+        unsubDeriv = deriv.subscribe(proxy, gran, cb);
+      }
+
+      return () => {
+        if (pollTimer) clearInterval(pollTimer);
+        if (unsubDeriv) unsubDeriv();
+      };
     }
   };
 
-  /* ---------------- Unified API with caching ---------------- */
+  /* ---------------- Unified API with Real-Data Caching ---------------- */
   const cache = new Map();
 
   function merge(base, incoming) {
-    if (!base.length) return incoming.slice();
-    const out = base.slice();
-    for (const c of incoming) {
-      const last = out[out.length - 1];
-      if (c.time > last.time) out.push(c);
-      else if (c.time === last.time) out[out.length - 1] = c;
-      else {
-        let lo = 0, hi = out.length - 1;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          if (out[mid].time === c.time) { out[mid] = c; break; }
-          if (out[mid].time < c.time) lo = mid + 1; else hi = mid - 1;
-        }
-      }
+    if (!base || !base.length) return (incoming || []).slice();
+    if (!incoming || !incoming.length) return base.slice();
+    const map = new Map();
+    for (const c of base) {
+      if (c && Number.isFinite(c.time)) map.set(c.time, c);
     }
-    return out;
+    for (const c of incoming) {
+      if (c && Number.isFinite(c.time)) map.set(c.time, c);
+    }
+    return Array.from(map.values()).sort((a, b) => a.time - b.time);
   }
 
   async function getCandles(market, gran, count) {
     const key = `${market.id}|${gran}`;
     const have = cache.get(key);
     let data;
-    try {
-      if (market.feed === 'mt5') {
-        const full = await mt5.candles(market.mt5Symbol, gran, 'full', count);
-        data = have ? merge(have, full) : full;
-      } else if (have && have.length >= count) {
-        const recent = market.feed === 'deriv'
-          ? await deriv.candles(market.id, gran, 50)
-          : await binance.candles(market.id, gran, 50);
-        data = merge(have, recent);
-      } else {
-        data = market.feed === 'deriv'
-          ? await deriv.history(market.id, gran, count)
-          : await binance.history(market.id, gran, count);
-      }
-    } catch (err) {
-      console.warn(`Live fetch fallback for ${market.id} (${gran}s):`, err.message);
-      data = have && have.length ? have : generateSyntXCandles(market.mt5Symbol || market.id, gran, count);
+
+    if (market.feed === 'mt5') {
+      const full = await mt5.candles(market, gran, 'full', count);
+      data = have ? merge(have, full) : full;
+    } else if (have && have.length >= count * 0.85) {
+      const recent = market.feed === 'deriv'
+        ? await deriv.candles(market.id, gran, 40)
+        : await binance.candles(market.id, gran, 40);
+      market.liveSource = market.feed === 'deriv' ? 'DERIV WS LIVE' : 'BINANCE WS LIVE';
+      data = merge(have, recent);
+    } else {
+      data = market.feed === 'deriv'
+        ? await deriv.history(market.id, gran, count)
+        : await binance.history(market.id, gran, count);
+      market.liveSource = market.feed === 'deriv' ? 'DERIV WS LIVE' : 'BINANCE WS LIVE';
     }
-    if (!data || !data.length) {
-      data = generateSyntXCandles(market.mt5Symbol || market.id, gran, count);
+
+    if (data && data.length) {
+      cache.set(key, data);
+      return data.slice(-count);
     }
-    cache.set(key, data);
-    return data.slice(-count);
+    if (have && have.length) {
+      return have.slice(-count);
+    }
+    throw new Error(`No live market candles returned for ${market.name}`);
   }
 
   async function getHistory(market, gran, total) {
-    try {
-      if (market.feed === 'deriv') return await deriv.history(market.id, gran, total);
-      if (market.feed === 'binance') return await binance.history(market.id, gran, total);
-      return await mt5.candles(market.mt5Symbol, gran, 'full', total);
-    } catch (err) {
-      return generateSyntXCandles(market.mt5Symbol || market.id, gran, total);
-    }
+    if (market.feed === 'deriv') return await deriv.history(market.id, gran, total);
+    if (market.feed === 'binance') return await binance.history(market.id, gran, total);
+    return await mt5.candles(market, gran, 'full', total);
   }
 
   function subscribe(market, gran, cb) {
     const key = `${market.id}|${gran}`;
     const wrapped = c => {
+      if (!c || !Number.isFinite(c.time)) return;
       cache.set(key, merge(cache.get(key) || [], [c]));
       cb(c);
     };
     if (market.feed === 'deriv') return deriv.subscribe(market.id, gran, wrapped);
     if (market.feed === 'binance') return binance.subscribe(market.id, gran, wrapped);
-    return mt5.subscribe(market.mt5Symbol, gran, wrapped);
+    return mt5.subscribe(market, gran, wrapped);
   }
 
   async function loadSeries(market, pairKey, opts = {}) {
-    const pair = TF_PAIRS[pairKey];
+    const pair = TF_PAIRS[pairKey] || TF_PAIRS['4H_5m'];
     const recipe = htfRecipe(pair.htf, market.profile);
     const bucketFn = bucketFnFor(recipe, pair.htf);
     const htfCount = opts.htfCount || recipe.count;
-    const ltfCount = opts.ltfCount || 420;
+    const ltfCount = opts.ltfCount || 400;
 
     const htfBaseP = getCandles(market, recipe.base, htfCount);
     const ltfP = recipe.base === pair.ltf ? htfBaseP : getCandles(market, pair.ltf, ltfCount);
@@ -591,7 +673,7 @@
   }
 
   function decimalsFor(candles) {
-    const sample = candles.slice(-30).map(c => c.close);
+    const sample = (candles || []).slice(-30).map(c => c.close);
     let d = 0;
     for (const v of sample) {
       const s = String(v);
