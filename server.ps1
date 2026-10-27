@@ -16,6 +16,46 @@ $mimeTypes = @{
 
 $mt5Cache = @{}
 $mt5Meta  = @{}
+$commonBridgeDir = "C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\Common\Files\crt_bridge"
+if (-not (Test-Path $commonBridgeDir)) {
+  New-Item -ItemType Directory -Path $commonBridgeDir -Force | Out-Null
+}
+
+$aliasMap = @{
+  "Volatility 75 Index" = "R_75"
+  "Volatility 75 (1s) Index" = "1HZ75V"
+  "Volatility 100 Index" = "R_100"
+  "Volatility 100 (1s) Index" = "1HZ100V"
+  "Volatility 50 Index" = "R_50"
+  "Volatility 50 (1s) Index" = "1HZ50V"
+  "Volatility 25 Index" = "R_25"
+  "Volatility 25 (1s) Index" = "1HZ25V"
+  "Volatility 10 Index" = "R_10"
+  "Volatility 10 (1s) Index" = "1HZ10V"
+  "Boom 1000 Index" = "BOOM1000"
+  "Crash 1000 Index" = "CRASH1000"
+  "Boom 500 Index" = "BOOM500"
+  "Crash 500 Index" = "CRASH500"
+  "Boom 300 Index" = "BOOM300N"
+  "Crash 300 Index" = "CRASH300N"
+  "Step Index" = "STP"
+  "Jump 75 Index" = "JD75"
+  "Jump 100 Index" = "JD100"
+  "EURUSD" = "frxEURUSD"
+  "GBPUSD" = "frxGBPUSD"
+  "USDJPY" = "frxUSDJPY"
+  "XAUUSD" = "frxXAUUSD"
+}
+
+# Build bidirectional lookup table
+$allLookup = @{}
+foreach ($k in $aliasMap.Keys) {
+  $v = $aliasMap[$k]
+  $safeK = $k -replace '[^A-Za-z0-9_-]', '_'
+  $allLookup[$k] = @($k, $v, $safeK)
+  $allLookup[$v] = @($v, $k, $safeK)
+  $allLookup[$safeK] = @($safeK, $k, $v)
+}
 
 while ($listener.IsListening) {
   try {
@@ -77,8 +117,12 @@ while ($listener.IsListening) {
       $body = $reader.ReadToEnd()
       $reader.Close()
       if ($sym -and $tf) {
-        $mt5Cache["$sym|$tf"] = $body
-        $mt5Meta[$sym] = @{ updated = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
+        $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        $candidates = if ($allLookup.ContainsKey($sym)) { $allLookup[$sym] } else { @($sym) }
+        foreach ($c in $candidates) {
+          $mt5Cache["$c|$tf"] = $body
+          $mt5Meta[$c] = @{ updated = $now }
+        }
       }
       $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
       $res.ContentType = "application/json"
@@ -88,6 +132,24 @@ while ($listener.IsListening) {
     }
 
     if ($path -eq "/api/mt5/symbols") {
+      $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+      # Scan disk bridge for actively written files
+      if (Test-Path $commonBridgeDir) {
+        Get-ChildItem $commonBridgeDir -Filter "*_*.json" -ErrorAction SilentlyContinue | ForEach-Object {
+          $baseName = $_.BaseName
+          $idx = $baseName.LastIndexOf('_')
+          if ($idx -gt 0) {
+            $sName = $baseName.Substring(0, $idx)
+            $mt5Meta[$sName] = @{ updated = [int][DateTimeOffset]::new($_.LastWriteTimeUtc).ToUnixTimeSeconds() }
+            if ($allLookup.ContainsKey($sName)) {
+              foreach ($alias in $allLookup[$sName]) {
+                $mt5Meta[$alias] = @{ updated = [int][DateTimeOffset]::new($_.LastWriteTimeUtc).ToUnixTimeSeconds() }
+              }
+            }
+          }
+        }
+      }
+
       $items = @()
       foreach ($k in $mt5Meta.Keys) {
         $u = $mt5Meta[$k].updated
@@ -105,13 +167,34 @@ while ($listener.IsListening) {
       $sym = $req.QueryString["symbol"]
       $tf  = [int]($req.QueryString["tf"] -as [int])
       if (-not $tf) { $tf = 300 }
-      $key = "$sym|$tf"
 
-      if ($mt5Cache.ContainsKey($key)) {
-        $json = $mt5Cache[$key]
-      } else {
-        $json = "[]"
+      $candidates = if ($allLookup.ContainsKey($sym)) { $allLookup[$sym] } else { @($sym) }
+      $json = "[]"
+
+      # 1. Check memory cache
+      foreach ($c in $candidates) {
+        $key = "$c|$tf"
+        if ($mt5Cache.ContainsKey($key)) {
+          $json = $mt5Cache[$key]
+          break
+        }
       }
+
+      # 2. Check disk file bridge if not in memory
+      if ($json -eq "[]" -and (Test-Path $commonBridgeDir)) {
+        foreach ($c in $candidates) {
+          $safeC = $c -replace '[^A-Za-z0-9_-]', '_'
+          $fPath = Join-Path $commonBridgeDir "${safeC}_${tf}.json"
+          if (Test-Path $fPath) {
+            try {
+              $json = [System.IO.File]::ReadAllText($fPath, [System.Text.Encoding]::UTF8)
+              $mt5Cache["$sym|$tf"] = $json
+              break
+            } catch {}
+          }
+        }
+      }
+
       $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
       $res.ContentType = "application/json"
       $res.OutputStream.Write($bytes, 0, $bytes.Length)

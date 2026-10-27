@@ -549,7 +549,7 @@
     },
 
     async candles(market, gran, kind = 'full', count = 500) {
-      const symbol = market.mt5Symbol || market.name;
+      const symbol = market.mt5Symbol || market.id || market.name;
       try {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), 1400);
@@ -779,18 +779,21 @@
     const have = cache.get(key);
     let data = null;
 
-    if (market.feed === 'mt5') {
+    // Check MT5 App bridge first if online or if MT5 market
+    if (mt5.bridgeOnline || market.feed === 'mt5') {
       try {
         const full = await Promise.race([
           mt5.candles(market, gran, 'full', count),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('MT5 timeout')), 1800))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('MT5 timeout')), 1000))
         ]);
         if (Array.isArray(full) && full.length) {
           data = have ? merge(have, full) : full;
           market.liveSource = 'MT5 LIVE';
         }
       } catch (e) {}
-    } else if (market.feed === 'binance') {
+    }
+
+    if (!data && market.feed === 'binance') {
       try {
         data = await Promise.race([
           binance.history(market.id, gran, count),
@@ -800,7 +803,7 @@
           market.liveSource = 'BINANCE LIVE';
         }
       } catch (e) {}
-    } else if (market.feed === 'deriv') {
+    } else if (!data && market.feed === 'deriv') {
       try {
         data = await Promise.race([
           deriv.history(market.id, gran, count),
@@ -843,6 +846,13 @@
       cb(c);
     };
 
+    if (mt5.bridgeOnline) {
+      try {
+        const un = mt5.subscribe(market, gran, wrapped);
+        if (un) return un;
+      } catch (e) {}
+    }
+
     if (market.feed === 'binance') {
       try {
         return binance.subscribe(market.id, gran, wrapped);
@@ -850,7 +860,7 @@
         return createFallbackSubscription(market, gran, wrapped);
       }
     }
-    if (market.feed === 'mt5' && mt5.bridgeOnline) {
+    if (market.feed === 'mt5') {
       try {
         return mt5.subscribe(market, gran, wrapped);
       } catch (e) {
