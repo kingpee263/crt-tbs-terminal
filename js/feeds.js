@@ -668,16 +668,6 @@
     'ETHUSDT': { base: 2540.0, vol: 12.0, dec: 2 },
     'SOLUSDT': { base: 178.50, vol: 1.4, dec: 2 }
   };
-    'frxXAUUSD': { base: 2731.50, vol: 2.2, dec: 2 },
-    'frxXAGUSD': { base: 33.65, vol: 0.12, dec: 3 },
-    'frxEURUSD': { base: 1.08250, vol: 0.0006, dec: 5 },
-    'frxGBPUSD': { base: 1.29650, vol: 0.0008, dec: 5 },
-    'frxUSDJPY': { base: 153.20, vol: 0.25, dec: 3 },
-    'frxAUDUSD': { base: 0.6580, vol: 0.0007, dec: 5 },
-    'BTCUSDT': { base: 67800.0, vol: 180.0, dec: 2 },
-    'ETHUSDT': { base: 2540.0, vol: 12.0, dec: 2 },
-    'SOLUSDT': { base: 178.50, vol: 1.4, dec: 2 }
-  };
 
   function generateRealisticSeries(market, gran, count) {
     const spec = MARKET_SPECS[market.id] || { base: 1000.0, vol: 5.0, dec: 2, spike: null };
