@@ -171,7 +171,7 @@
           try { this.ws.close(); } catch (e) {}
           if (openReject) openReject(new Error('Deriv timeout'));
         }
-      }, 2500);
+      }, 20000);
 
       this.openPromise = new Promise((resolve, reject) => {
         openReject = reject;
@@ -235,8 +235,9 @@
     }
 
     _onMessage(msg) {
-      if (msg.msg_type === 'ohlc' && msg.subscription) {
-        const s = this.subs.get(msg.subscription.id);
+      const subId = (msg.subscription && msg.subscription.id) || (msg.ohlc && msg.ohlc.id) || (msg.tick && msg.tick.id);
+      if (msg.msg_type === 'ohlc' && subId) {
+        const s = this.subs.get(subId);
         if (s && msg.ohlc) {
           const o = msg.ohlc;
           const openTimeSec = Number(o.open_time || o.epoch);
@@ -246,6 +247,18 @@
             high: +o.high,
             low: +o.low,
             close: +o.close
+          });
+        }
+      } else if (msg.msg_type === 'tick' && subId) {
+        const s = this.subs.get(subId);
+        if (s && msg.tick) {
+          const t = msg.tick;
+          s.cb({
+            time: Number(t.epoch) * 1000,
+            open: +t.quote,
+            high: +t.quote,
+            low: +t.quote,
+            close: +t.quote
           });
         }
       }
@@ -258,7 +271,7 @@
       }
     }
 
-    send(req, timeoutMs = 2500) {
+    send(req, timeoutMs = 20000) {
       return new Promise((resolve, reject) => {
         const id = this.reqId++;
         const payload = JSON.stringify({ ...req, req_id: id });
@@ -767,40 +780,33 @@
     const have = cache.get(key);
     let data = null;
 
-    // Check MT5 App bridge first if online or if MT5 market
+    // 1. Check local MT5 Deriv App Bridge first
     if (mt5.bridgeOnline || market.feed === 'mt5') {
       try {
         const full = await Promise.race([
           mt5.candles(market, gran, 'full', count),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('MT5 timeout')), 1000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('MT5 timeout')), 2500))
         ]);
         if (Array.isArray(full) && full.length) {
           data = have ? merge(have, full) : full;
-          market.liveSource = 'MT5 LIVE';
+          market.liveSource = 'MT5 LIVE FEED';
         }
       } catch (e) {}
     }
 
-    if (!data && market.feed === 'binance') {
-      try {
-        data = await Promise.race([
-          binance.history(market.id, gran, count),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Binance timeout')), 3000))
-        ]);
-        if (Array.isArray(data) && data.length) {
-          market.liveSource = 'BINANCE LIVE';
-        }
-      } catch (e) {}
-    } else if (!data && market.feed === 'deriv') {
+    // 2. Query official Deriv WebSocket API
+    if (!data && market.feed === 'deriv') {
       try {
         data = await Promise.race([
           deriv.history(market.id, gran, count),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Deriv timeout')), 2500))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Deriv timeout')), 20000))
         ]);
         if (Array.isArray(data) && data.length) {
-          market.liveSource = 'DERIV WS LIVE';
+          market.liveSource = 'DERIV REAL-TIME (PORT 8443)';
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Deriv WebSocket fetch retry:', e.message);
+      }
     }
 
     if (!data || !data.length) {
@@ -818,9 +824,11 @@
 
   async function getHistory(market, gran, total) {
     try {
-      if (market.feed === 'deriv') return await deriv.history(market.id, gran, total);
-      if (market.feed === 'binance') return await binance.history(market.id, gran, total);
-      return await mt5.candles(market, gran, 'full', total);
+      if (mt5.bridgeOnline) {
+        const mc = await mt5.candles(market, gran, 'full', total);
+        if (mc && mc.length) return mc;
+      }
+      return await deriv.history(market.id, gran, total);
     } catch (e) {
       return generateRealisticSeries(market, gran, total);
     }
@@ -841,26 +849,10 @@
       } catch (e) {}
     }
 
-    if (market.feed === 'binance') {
-      try {
-        return binance.subscribe(market.id, gran, wrapped);
-      } catch (e) {
-        return createFallbackSubscription(market, gran, wrapped);
-      }
-    }
-    if (market.feed === 'mt5') {
-      try {
-        return mt5.subscribe(market, gran, wrapped);
-      } catch (e) {
-        return createFallbackSubscription(market, gran, wrapped);
-      }
-    }
-    if (market.feed === 'deriv' && deriv.isConnected()) {
-      try {
-        return deriv.subscribe(market.id, gran, wrapped);
-      } catch (e) {
-        return createFallbackSubscription(market, gran, wrapped);
-      }
+    try {
+      return deriv.subscribe(market.id, gran, wrapped);
+    } catch (e) {
+      return createFallbackSubscription(market, gran, wrapped);
     }
     return createFallbackSubscription(market, gran, wrapped);
   }
