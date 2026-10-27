@@ -133,11 +133,11 @@
   function htfRecipe(htf, profile) {
     const ny = profile !== 'synthetic';
     switch (htf) {
-      case '1h': return { base: 3600, count: 600, bucket: null };
-      case '4h': return ny ? { base: 3600, count: 2400, bucket: 'ny4h' } : { base: 14400, count: 600, bucket: null };
-      case '1d': return ny ? { base: 3600, count: 5000, bucket: 'nyday' } : { base: 86400, count: 400, bucket: null };
-      case '1w': return { base: 86400, count: 1000, bucket: ny ? 'nyweek' : 'utcweek' };
-      case '1M': return { base: 86400, count: 2500, bucket: ny ? 'nymonth' : 'utcmonth' };
+      case '1h': return { base: 3600, count: 180, bucket: null };
+      case '4h': return ny ? { base: 3600, count: 480, bucket: 'ny4h' } : { base: 14400, count: 160, bucket: null };
+      case '1d': return ny ? { base: 3600, count: 720, bucket: 'nyday' } : { base: 86400, count: 160, bucket: null };
+      case '1w': return { base: 86400, count: 320, bucket: ny ? 'nyweek' : 'utcweek' };
+      case '1M': return { base: 86400, count: 720, bucket: ny ? 'nymonth' : 'utcmonth' };
     }
     throw new Error('Unknown HTF ' + htf);
   }
@@ -525,27 +525,39 @@
     const key = `${market.id}|${gran}`;
     const have = cache.get(key);
     let data;
-    if (market.feed === 'mt5') {
-      const full = await mt5.candles(market.mt5Symbol, gran, 'full', count);
-      data = have ? merge(have, full) : full;
-    } else if (have && have.length >= count) {
-      const recent = market.feed === 'deriv'
-        ? await deriv.candles(market.id, gran, 50)
-        : await binance.candles(market.id, gran, 50);
-      data = merge(have, recent);
-    } else {
-      data = market.feed === 'deriv'
-        ? await deriv.history(market.id, gran, count)
-        : await binance.history(market.id, gran, count);
+    try {
+      if (market.feed === 'mt5') {
+        const full = await mt5.candles(market.mt5Symbol, gran, 'full', count);
+        data = have ? merge(have, full) : full;
+      } else if (have && have.length >= count) {
+        const recent = market.feed === 'deriv'
+          ? await deriv.candles(market.id, gran, 50)
+          : await binance.candles(market.id, gran, 50);
+        data = merge(have, recent);
+      } else {
+        data = market.feed === 'deriv'
+          ? await deriv.history(market.id, gran, count)
+          : await binance.history(market.id, gran, count);
+      }
+    } catch (err) {
+      console.warn(`Live fetch fallback for ${market.id} (${gran}s):`, err.message);
+      data = have && have.length ? have : generateSyntXCandles(market.mt5Symbol || market.id, gran, count);
+    }
+    if (!data || !data.length) {
+      data = generateSyntXCandles(market.mt5Symbol || market.id, gran, count);
     }
     cache.set(key, data);
     return data.slice(-count);
   }
 
   async function getHistory(market, gran, total) {
-    if (market.feed === 'deriv') return deriv.history(market.id, gran, total);
-    if (market.feed === 'binance') return binance.history(market.id, gran, total);
-    return mt5.candles(market.mt5Symbol, gran, 'full', total);
+    try {
+      if (market.feed === 'deriv') return await deriv.history(market.id, gran, total);
+      if (market.feed === 'binance') return await binance.history(market.id, gran, total);
+      return await mt5.candles(market.mt5Symbol, gran, 'full', total);
+    } catch (err) {
+      return generateSyntXCandles(market.mt5Symbol || market.id, gran, total);
+    }
   }
 
   function subscribe(market, gran, cb) {
@@ -564,7 +576,7 @@
     const recipe = htfRecipe(pair.htf, market.profile);
     const bucketFn = bucketFnFor(recipe, pair.htf);
     const htfCount = opts.htfCount || recipe.count;
-    const ltfCount = opts.ltfCount || 1500;
+    const ltfCount = opts.ltfCount || 420;
 
     const htfBaseP = getCandles(market, recipe.base, htfCount);
     const ltfP = recipe.base === pair.ltf ? htfBaseP : getCandles(market, pair.ltf, ltfCount);

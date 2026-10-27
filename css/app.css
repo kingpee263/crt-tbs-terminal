@@ -335,9 +335,127 @@ html, body {
   padding: 12px;
 }
 
-#view-playbook.active {
+#view-playbook.active,
+#view-signals.active {
   display: block;
   padding: 12px;
+}
+
+.sig-count {
+  display: inline-block;
+  background: var(--good);
+  color: #042f2e;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  margin-left: 4px;
+  font-family: var(--font-mono);
+}
+
+/* Visual Blue & Red Entry / Stop Loss Box inside Ticket & Signal Cards */
+.pos-visualizer {
+  margin-bottom: 9px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-hi);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.pv-sl {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.36), rgba(225, 29, 72, 0.18));
+  border-bottom: 2px solid #ffffff;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  color: #fecdd3;
+}
+
+.pv-entry {
+  background: #1e3a8a;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 5px 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pv-tp1 {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.35), rgba(59, 130, 246, 0.18));
+  border-bottom: 1.5px dashed #fbbf24;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  color: #fde68a;
+}
+
+.pv-tp2 {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.42), rgba(16, 185, 129, 0.25));
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  color: #a7f3d0;
+  font-weight: 700;
+}
+
+/* ML Pair Intelligence Box */
+.ml-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.ml-meter {
+  height: 7px;
+  background: var(--bg-0);
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.ml-meter > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+}
+
+/* Pure Signals Grid */
+.signals-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.signals-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  border-left: 4px solid var(--good);
+}
+
+.signals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+.sig-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border-hi);
+  border-radius: 10px;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.sig-card.pure-aplus {
+  border-color: rgba(16, 185, 129, 0.55);
 }
 
 /* ============ WATCHLIST SIDEBAR ============ */
