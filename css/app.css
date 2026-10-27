@@ -677,6 +677,18 @@ html, body {
 .charts[data-layout="ltf"] { grid-template-columns: 1fr; }
 .charts[data-layout="ltf"] #htfCard { display: none; }
 
+#brokerCard { display: none; }
+.charts[data-mode="broker"] {
+  grid-template-columns: 1fr !important;
+}
+.charts[data-mode="broker"] #htfCard,
+.charts[data-mode="broker"] #ltfCard {
+  display: none !important;
+}
+.charts[data-mode="broker"] #brokerCard {
+  display: flex !important;
+}
+
 .chart-card {
   background: var(--bg-1);
   border: 1px solid var(--border);

@@ -95,6 +95,10 @@
 
     <section class="center">
       <div class="chart-toolbar">
+        <div class="seg small" id="chartModeSeg" title="Switch between CRT Strategy Desk and Live Broker Chart">
+          <button data-mode="crt" class="active">Strategy Desk</button>
+          <button data-mode="broker">Live Broker Chart</button>
+        </div>
         <div class="seg small" id="layoutSeg">
           <button data-layout="split" class="active">Dual Pane</button>
           <button data-layout="htf">HTF</button>
@@ -110,7 +114,7 @@
         <button class="btn ghost" id="reloadBtn" title="Refresh candle history">Refresh</button>
       </div>
 
-      <div class="charts" id="charts" data-layout="split">
+      <div class="charts" id="charts" data-layout="split" data-mode="crt">
         <div class="chart-card" id="htfCard">
           <div class="chart-head">
             <span class="tf-pill" id="htfPill">4H</span>
@@ -128,6 +132,24 @@
             <span class="chart-sub" id="ltfSub"></span>
           </div>
           <div class="chart-host" id="ltfChart"></div>
+        </div>
+        <div class="chart-card" id="brokerCard">
+          <div class="chart-head" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="tf-pill" id="brokerSourcePill" style="background:var(--accent); color:#fff; border-color:var(--accent);">DERIV PORT 8443</span>
+              <span class="chart-title" id="brokerTitle">Deriv Real-Time Engine</span>
+              <span class="badge live-badge" style="background:rgba(38,166,154,0.15); color:#26a69a; border:1px solid #26a69a; font-size:10px; padding:1px 6px; border-radius:3px; font-weight:700;">● OFFICIAL LIVE FEED</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="muted small" id="brokerHint" style="font-size:10.5px; color:var(--text-mute);">Direct Broker Connection</span>
+              <a id="brokerDirectLink" href="https://charts.deriv.com:8443/deriv" target="_blank" rel="noopener noreferrer" class="btn primary small" style="text-decoration:none; padding:3px 9px; font-size:10.5px; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                Open Full Official Window ↗
+              </a>
+            </div>
+          </div>
+          <div class="chart-host" style="flex:1; position:relative; overflow:hidden;">
+            <iframe id="brokerIframe" src="about:blank" style="width:100%; height:100%; border:none; background:#131722;" allow="fullscreen"></iframe>
+          </div>
         </div>
         <div class="loading" id="loading"><div class="spinner"></div><span id="loadingText">Connecting to market feed…</span></div>
       </div>

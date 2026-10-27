@@ -24,6 +24,7 @@
     showSessions: true,
     showOte: true,
     showKl: true,
+    chartMode: 'crt',
     alertsOn: true,
     tgToken: '',
     tgChat: '',
@@ -332,6 +333,72 @@
     if (ltfChart && ltfEl) {
       const cd = ltfChart.getCountdownInfo();
       ltfEl.textContent = `Closes in ${cd.long}`;
+    }
+  }
+
+  /* ---------------- Official Live Broker Chart View ---------------- */
+  function updateBrokerView(market) {
+    market = market || F.markets.get(state.marketId);
+    if (!market) return;
+
+    const iframe = document.getElementById('brokerIframe');
+    const title = document.getElementById('brokerTitle');
+    const pill = document.getElementById('brokerSourcePill');
+    const directLink = document.getElementById('brokerDirectLink');
+    const hint = document.getElementById('brokerHint');
+
+    let url = '';
+    let link = '';
+    let label = '';
+    let source = '';
+
+    if (market.feed === 'deriv') {
+      source = 'DERIV PORT 8443';
+      label = `Deriv Real-Time Engine · ${market.name}`;
+      url = `https://charts.deriv.com:8443/deriv?instrument=${encodeURIComponent(market.id)}&theme=dark`;
+      link = `https://charts.deriv.com:8443/deriv?instrument=${encodeURIComponent(market.id)}`;
+      if (hint) hint.textContent = `Direct feed: charts.deriv.com:8443`;
+    } else if (market.feed === 'mt5' || (market.category && market.category.toLowerCase().includes('weltrade'))) {
+      source = 'WELTRADE SYNTX';
+      label = `Weltrade Official SyntX Engine · ${market.name}`;
+      url = `https://weltradecharts.com/chart?lang=en&theme=dark`;
+      link = `https://www.weltrade.com/tools/charts/`;
+      if (hint) hint.textContent = `Direct feed: weltradecharts.com`;
+    } else {
+      source = 'TRADINGVIEW LIVE';
+      label = `TradingView Live Institutional Chart · ${market.name}`;
+      const tvSym = market.id.includes('BTC') ? 'BINANCE:BTCUSDT' : (market.id.includes('XAU') ? 'OANDA:XAUUSD' : market.id);
+      url = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(tvSym)}&interval=5&theme=dark&style=1&timezone=Etc%2FUTC`;
+      link = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSym)}`;
+      if (hint) hint.textContent = `Direct feed: tradingview.com`;
+    }
+
+    if (title) title.textContent = label;
+    if (pill) pill.textContent = source;
+    if (directLink) {
+      directLink.href = link;
+      directLink.setAttribute('title', `Open ${market.name} official chart in a new full tab`);
+    }
+    if (iframe && iframe.dataset.currUrl !== url) {
+      iframe.dataset.currUrl = url;
+      iframe.src = url;
+    }
+  }
+
+  function setChartMode(mode) {
+    state.chartMode = mode;
+    const charts = document.getElementById('charts');
+    if (charts) charts.dataset.mode = mode;
+    document.querySelectorAll('#chartModeSeg button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    if (mode === 'broker') {
+      updateBrokerView();
+    } else {
+      setTimeout(() => {
+        if (htfChart) htfChart.requestDraw();
+        if (ltfChart) ltfChart.requestDraw();
+      }, 50);
     }
   }
 
@@ -1108,6 +1175,7 @@
       ltfChart.fit(85);
 
       updateQuoteHeader(market, series.pair, series.ltf, dec);
+      updateBrokerView(market);
 
       renderTicketAndTable();
       renderWatchlist();
@@ -1438,6 +1506,12 @@
 
     htfChart = new window.CRTChart(document.getElementById('htfChart'));
     ltfChart = new window.CRTChart(document.getElementById('ltfChart'));
+
+    document.querySelectorAll('#chartModeSeg button').forEach(b => {
+      b.addEventListener('click', () => {
+        setChartMode(b.dataset.mode);
+      });
+    });
 
     document.querySelectorAll('#layoutSeg button').forEach(b => {
       b.addEventListener('click', () => {
