@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/app.css?v=2.3" />
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -96,14 +96,19 @@
     <section class="center">
       <div class="chart-toolbar">
         <div class="seg small" id="chartModeSeg" title="Switch between CRT Strategy Desk and Live Broker Chart">
-          <button data-mode="crt" class="active">Strategy Desk</button>
-          <button data-mode="broker">Live Broker Chart</button>
+          <button data-mode="tri" class="active">Broker + Strategy</button>
+          <button data-mode="crt">Strategy Only</button>
+          <button data-mode="broker">Live Broker Only</button>
         </div>
         <div class="seg small" id="layoutSeg">
-          <button data-layout="split" class="active">Dual Pane</button>
+          <button data-layout="tri" class="active" title="Tri-View: Live Broker Chart + HTF Structure + LTF Execution">Tri-View</button>
+          <button data-layout="broker-ltf" title="Live Broker Chart + LTF Execution">Broker + LTF</button>
+          <button data-layout="split" title="Dual Pane: HTF + LTF">HTF + LTF</button>
+          <button data-layout="broker" title="Official Live Broker Chart Full">Broker Full</button>
           <button data-layout="htf">HTF</button>
           <button data-layout="ltf">LTF</button>
         </div>
+        <label class="tog" title="Toggle Live Broker Chart inside Strategy Desk"><input type="checkbox" id="togBrokerChart" checked /> Live Broker Chart</label>
         <label class="tog"><input type="checkbox" id="togPositionBox" checked /> Position Tool</label>
         <label class="tog"><input type="checkbox" id="togSessions" checked /> Sessions</label>
         <label class="tog"><input type="checkbox" id="togOte" checked /> OTE</label>
@@ -114,7 +119,7 @@
         <button class="btn ghost" id="reloadBtn" title="Refresh candle history">Refresh</button>
       </div>
 
-      <div class="charts" id="charts" data-layout="split" data-mode="crt">
+      <div class="charts" id="charts" data-layout="tri" data-mode="tri">
         <div class="chart-card" id="htfCard">
           <div class="chart-head">
             <span class="tf-pill" id="htfPill">4H</span>
@@ -458,12 +463,12 @@
 
   <div class="toasts" id="toasts"></div>
 
-  <script src="js/time.js?v=2.2"></script>
-  <script src="js/feeds.js?v=2.2"></script>
-  <script src="js/engine.js?v=2.2"></script>
-  <script src="js/ml.js?v=2.2"></script>
-  <script src="js/backtest.js?v=2.2"></script>
-  <script src="js/chart.js?v=2.2"></script>
-  <script src="js/app.js?v=2.2"></script>
+  <script src="js/time.js?v=2.3"></script>
+  <script src="js/feeds.js?v=2.3"></script>
+  <script src="js/engine.js?v=2.3"></script>
+  <script src="js/ml.js?v=2.3"></script>
+  <script src="js/backtest.js?v=2.3"></script>
+  <script src="js/chart.js?v=2.3"></script>
+  <script src="js/app.js?v=2.3"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@
   const state = {
     marketId: '1HZ75V',
     pairKey: '4H_5m',
-    layout: 'split',
+    layout: 'tri',
     wlCategory: 'all',
     wlActiveOnly: false,
     entryModelView: 'model1',
@@ -24,7 +24,8 @@
     showSessions: true,
     showOte: true,
     showKl: true,
-    chartMode: 'crt',
+    showBrokerChart: true,
+    chartMode: 'tri',
     alertsOn: true,
     tgToken: '',
     tgChat: '',
@@ -392,14 +393,27 @@
     document.querySelectorAll('#chartModeSeg button').forEach(b => {
       b.classList.toggle('active', b.dataset.mode === mode);
     });
+
     if (mode === 'broker') {
-      updateBrokerView();
-    } else {
-      setTimeout(() => {
-        if (htfChart) htfChart.requestDraw();
-        if (ltfChart) ltfChart.requestDraw();
-      }, 50);
+      charts.dataset.layout = 'broker';
+    } else if (mode === 'tri') {
+      charts.dataset.layout = 'tri';
+    } else if (mode === 'crt') {
+      charts.dataset.layout = 'split';
     }
+
+    document.querySelectorAll('#layoutSeg button').forEach(b => {
+      b.classList.toggle('active', b.dataset.layout === charts.dataset.layout);
+    });
+
+    const tog = document.getElementById('togBrokerChart');
+    if (tog) tog.checked = (charts.dataset.layout === 'tri' || charts.dataset.layout === 'broker' || charts.dataset.layout === 'broker-ltf');
+
+    updateBrokerView();
+    setTimeout(() => {
+      if (htfChart) htfChart.requestDraw();
+      if (ltfChart) ltfChart.requestDraw();
+    }, 60);
   }
 
   /* ---------------- Active Entry Model Level Resolver ---------------- */
@@ -1516,9 +1530,43 @@
     document.querySelectorAll('#layoutSeg button').forEach(b => {
       b.addEventListener('click', () => {
         document.querySelectorAll('#layoutSeg button').forEach(x => x.classList.toggle('active', x === b));
-        document.getElementById('charts').dataset.layout = b.dataset.layout;
-        setTimeout(() => { htfChart.requestDraw(); ltfChart.requestDraw(); }, 50);
+        const layout = b.dataset.layout;
+        state.layout = layout;
+        const charts = document.getElementById('charts');
+        charts.dataset.layout = layout;
+        if (layout === 'tri' || layout === 'broker-ltf' || layout === 'broker') {
+          updateBrokerView();
+        }
+        const tog = document.getElementById('togBrokerChart');
+        if (tog) tog.checked = (layout === 'tri' || layout === 'broker' || layout === 'broker-ltf');
+        setTimeout(() => {
+          if (htfChart) htfChart.requestDraw();
+          if (ltfChart) ltfChart.requestDraw();
+        }, 60);
       });
+    });
+
+    document.getElementById('togBrokerChart')?.addEventListener('change', e => {
+      state.showBrokerChart = e.target.checked;
+      const charts = document.getElementById('charts');
+      let targetLayout = 'tri';
+      if (e.target.checked) {
+        targetLayout = (charts.dataset.layout === 'ltf') ? 'broker-ltf' : 'tri';
+      } else {
+        targetLayout = (charts.dataset.layout === 'broker-ltf') ? 'ltf' : 'split';
+      }
+      charts.dataset.layout = targetLayout;
+      document.querySelectorAll('#layoutSeg button').forEach(b => {
+        b.classList.toggle('active', b.dataset.layout === targetLayout);
+      });
+      document.querySelectorAll('#chartModeSeg button').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === (e.target.checked ? 'tri' : 'crt'));
+      });
+      if (e.target.checked) updateBrokerView();
+      setTimeout(() => {
+        if (htfChart) htfChart.requestDraw();
+        if (ltfChart) ltfChart.requestDraw();
+      }, 60);
     });
 
     document.getElementById('togPositionBox')?.addEventListener('change', e => { state.showPositionBox = e.target.checked; applyChartAnnotations(false); });

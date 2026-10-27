@@ -667,26 +667,107 @@ html, body {
 .charts {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.15fr 1fr 1fr;
   gap: 8px;
-  height: 470px;
+  height: 520px;
+  transition: all 0.15s ease-out;
 }
 
-.charts[data-layout="htf"] { grid-template-columns: 1fr; }
-.charts[data-layout="htf"] #ltfCard { display: none; }
-.charts[data-layout="ltf"] { grid-template-columns: 1fr; }
-.charts[data-layout="ltf"] #htfCard { display: none; }
+.charts[data-layout="tri"],
+.charts[data-mode="tri"] {
+  grid-template-columns: 1.15fr 1fr 1fr;
+}
+.charts[data-layout="tri"] #brokerCard,
+.charts[data-mode="tri"] #brokerCard {
+  display: flex !important;
+  order: 1;
+}
+.charts[data-layout="tri"] #htfCard,
+.charts[data-mode="tri"] #htfCard {
+  display: flex !important;
+  order: 2;
+}
+.charts[data-layout="tri"] #ltfCard,
+.charts[data-mode="tri"] #ltfCard {
+  display: flex !important;
+  order: 3;
+}
 
-#brokerCard { display: none; }
+.charts[data-layout="broker-ltf"] {
+  grid-template-columns: 1.25fr 1fr;
+}
+.charts[data-layout="broker-ltf"] #brokerCard {
+  display: flex !important;
+  order: 1;
+}
+.charts[data-layout="broker-ltf"] #htfCard {
+  display: none !important;
+}
+.charts[data-layout="broker-ltf"] #ltfCard {
+  display: flex !important;
+  order: 2;
+}
+
+.charts[data-layout="split"],
+.charts[data-mode="crt"] {
+  grid-template-columns: 1fr 1fr;
+}
+.charts[data-layout="split"] #brokerCard,
+.charts[data-mode="crt"] #brokerCard {
+  display: none !important;
+}
+.charts[data-layout="split"] #htfCard,
+.charts[data-mode="crt"] #htfCard {
+  display: flex !important;
+  order: 1;
+}
+.charts[data-layout="split"] #ltfCard,
+.charts[data-mode="crt"] #ltfCard {
+  display: flex !important;
+  order: 2;
+}
+
+.charts[data-layout="broker"],
 .charts[data-mode="broker"] {
   grid-template-columns: 1fr !important;
 }
+.charts[data-layout="broker"] #brokerCard,
+.charts[data-mode="broker"] #brokerCard {
+  display: flex !important;
+  order: 1;
+}
+.charts[data-layout="broker"] #htfCard,
+.charts[data-layout="broker"] #ltfCard,
 .charts[data-mode="broker"] #htfCard,
 .charts[data-mode="broker"] #ltfCard {
   display: none !important;
 }
-.charts[data-mode="broker"] #brokerCard {
-  display: flex !important;
+
+.charts[data-layout="htf"] {
+  grid-template-columns: 1fr;
+}
+.charts[data-layout="htf"] #brokerCard { display: none !important; }
+.charts[data-layout="htf"] #ltfCard { display: none !important; }
+.charts[data-layout="htf"] #htfCard { display: flex !important; }
+
+.charts[data-layout="ltf"] {
+  grid-template-columns: 1fr;
+}
+.charts[data-layout="ltf"] #brokerCard { display: none !important; }
+.charts[data-layout="ltf"] #htfCard { display: none !important; }
+.charts[data-layout="ltf"] #ltfCard { display: flex !important; }
+
+@media (max-width: 1200px) {
+  .charts[data-layout="tri"],
+  .charts[data-mode="tri"] {
+    grid-template-columns: 1fr 1fr;
+    height: auto;
+  }
+  .charts[data-layout="tri"] #brokerCard,
+  .charts[data-mode="tri"] #brokerCard {
+    grid-column: 1 / -1;
+    height: 380px;
+  }
 }
 
 .chart-card {
