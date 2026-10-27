@@ -318,7 +318,7 @@
     }
     if (feedEl) {
       const src = market.liveSource || (market.feed === 'deriv' ? 'DERIV WS LIVE' : market.feed === 'binance' ? 'BINANCE WS LIVE' : 'MT5 FEED');
-      feedEl.textContent = `${src} · ${pair.label}`;
+      feedEl.textContent = `${src} | ${pair.label}`;
     }
   }
 
@@ -461,8 +461,10 @@
         const s = ws?.setup;
         const ml = ws?.ml;
         const info = s ? (E.STATE_INFO[s.state] || { label: s.state, tone: 'muted' }) : { label: 'Live', tone: 'muted' };
-        const rawPrice = ws?.price ?? m.spot;
-        const priceTxt = rawPrice != null ? Number(rawPrice).toFixed(ws?.decimals || 2) : '—';
+        const spec = F.MARKET_SPECS ? F.MARKET_SPECS[m.id] : null;
+        const rawPrice = ws?.price ?? m.spot ?? spec?.base;
+        const dec = ws?.decimals || spec?.dec || 2;
+        const priceTxt = rawPrice != null ? Number(rawPrice).toFixed(dec) : '—';
         const dirTxt = s?.dir
           ? `${s.dir} · ${s.grade || ''} ${ml ? `· ${ml.probTP1}%` : ''}`
           : m.id.replace('mt5:', '');
@@ -1105,6 +1107,8 @@
       htfChart.fit(75);
       ltfChart.fit(85);
 
+      updateQuoteHeader(market, series.pair, series.ltf, dec);
+
       renderTicketAndTable();
       renderWatchlist();
       maybeAlert(market, evalRes.primary, mlPred, dec);
@@ -1387,7 +1391,7 @@
   }
 
   /* ---------------- Init & Event Wiring ---------------- */
-  document.addEventListener('DOMContentLoaded', async () => {
+  async function startApp() {
     loadPrefs();
     await loadLedger();
     startClock();
@@ -1571,5 +1575,11 @@
     await loadActiveMarket();
     setTimeout(scanWatchlistOnce, 1800);
     setInterval(scanWatchlistOnce, 90000);
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startApp);
+  } else {
+    startApp();
+  }
 })();
