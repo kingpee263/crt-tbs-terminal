@@ -490,7 +490,7 @@
     }
   };
 
-  /* ---------------- Weltrade SyntX (MT5 Local Bridge + Live Market Stream) ---------------- */
+  /* ---------------- Deriv MT5 Local Bridge & Real-Time Stream ---------------- */
   const MT5_TF = { 60: '60', 300: '300', 3600: '3600', 14400: '14400', 86400: '86400' };
   const mt5 = {
     bridgeUrl: '', // Relative '/api/mt5' when local server.ps1 is running
@@ -514,11 +514,11 @@
             markets.set(id, {
               id,
               name: s.symbol,
-              group: 'Weltrade SyntX · MT5 Terminal',
-              cat: 'weltrade',
+              group: 'Deriv MT5 Live',
+              cat: /boom|crash/i.test(s.symbol) ? 'deriv_boom' : (/step|jump/i.test(s.symbol) ? 'deriv_step' : 'deriv_vol'),
               feed: 'mt5',
               mt5Symbol: s.symbol,
-              proxySymbol: '1HZ75V',
+              proxySymbol: s.symbol,
               profile: guessMt5Profile(s.symbol),
               spike: guessSpike(s.symbol)
             });
