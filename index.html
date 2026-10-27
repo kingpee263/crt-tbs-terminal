@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRT Terminal — CRT + TBS Unified Strategy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css" />
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">CRT</div>
+      <div>
+        <div class="brand-name">CRT Terminal</div>
+        <div class="brand-sub">CRT + TBS · CRT Unlocked</div>
+      </div>
+    </div>
+
+    <div class="market-head">
+      <div class="mh-name" id="mhName">—</div>
+      <div class="mh-meta">
+        <span class="badge" id="mhProfile">—</span>
+        <span class="mh-price mono" id="mhPrice">—</span>
+        <span class="mh-feed" id="mhFeed"></span>
+      </div>
+    </div>
+
+    <div class="seg" id="tfSeg" role="tablist" aria-label="Timeframe pair"></div>
+
+    <div class="clock-card" id="clockCard" title="Central African Time (UTC+2). PDF 2 AMD windows converted from New York time.">
+      <div class="clock-time mono" id="clockTime">--:--:--</div>
+      <div class="clock-meta">
+        <span class="clock-tz">CAT</span>
+        <span id="clockPhase">—</span>
+        <span class="clock-left mono" id="clockLeft"></span>
+      </div>
+    </div>
+
+    <div class="feeds" id="feedStatus">
+      <span class="feed" data-feed="deriv"><i></i>Deriv</span>
+      <span class="feed" data-feed="mt5"><i></i>MT5</span>
+      <span class="feed" data-feed="binance"><i></i>Binance</span>
+    </div>
+
+    <div class="top-actions">
+      <button class="icon-btn" id="alertBtn" title="Toggle alerts">🔔</button>
+      <button class="icon-btn" id="settingsBtn" title="Strategy settings">⚙</button>
+    </div>
+  </header>
+
+  <nav class="viewtabs">
+    <button class="vt active" data-view="terminal">Terminal</button>
+    <button class="vt" data-view="backtest">Backtest</button>
+    <button class="vt" data-view="journal">Journal</button>
+    <button class="vt" data-view="playbook">Playbook &amp; CAT times</button>
+    <div class="vt-spacer"></div>
+    <div class="dst-note" id="dstNote"></div>
+  </nav>
+
+  <!-- ============ TERMINAL ============ -->
+  <main class="view active" id="view-terminal">
+    <aside class="watchlist">
+      <div class="wl-head">
+        <input type="search" id="wlSearch" placeholder="Search 65+ Deriv &amp; Weltrade pairs…" />
+        <div class="wl-cats" id="wlCats">
+          <button data-cat="all" class="active">All</button>
+          <button data-cat="weltrade">Weltrade SyntX</button>
+          <button data-cat="deriv_vol">Deriv Vol</button>
+          <button data-cat="deriv_boom">Boom/Crash</button>
+          <button data-cat="deriv_other">Step/Jump/DEX</button>
+          <button data-cat="forex">Forex/Metals</button>
+          <button data-cat="crypto">Crypto</button>
+        </div>
+        <label class="tog small" style="margin-top:5px;">
+          <input type="checkbox" id="wlActiveOnly" /> Only pairs with active setups
+        </label>
+      </div>
+      <div class="wl-body" id="wlBody"></div>
+      <div class="wl-foot" id="wlFoot"></div>
+    </aside>
+
+    <section class="center">
+      <div class="chart-toolbar">
+        <div class="seg small" id="layoutSeg">
+          <button data-layout="split" class="active">Split</button>
+          <button data-layout="htf">HTF</button>
+          <button data-layout="ltf">LTF</button>
+        </div>
+        <label class="tog"><input type="checkbox" id="togSessions" checked /> CAT sessions</label>
+        <label class="tog"><input type="checkbox" id="togOte" checked /> OTE zone</label>
+        <label class="tog"><input type="checkbox" id="togKl" checked /> Key levels</label>
+        <div class="tb-spacer"></div>
+        <button class="btn ghost" id="jumpBtn">⌖ Jump to setup</button>
+        <button class="btn ghost" id="reloadBtn">↻ Reload</button>
+      </div>
+
+      <div class="charts" id="charts" data-layout="split">
+        <div class="chart-card" id="htfCard">
+          <div class="chart-head">
+            <span class="tf-pill" id="htfPill">4H</span>
+            <span class="chart-title">HTF · CRT range &amp; key level</span>
+            <span class="chart-sub" id="htfSub"></span>
+          </div>
+          <div class="chart-host" id="htfChart"></div>
+        </div>
+        <div class="chart-card" id="ltfCard">
+          <div class="chart-head">
+            <span class="tf-pill ltf" id="ltfPill">5m</span>
+            <span class="chart-title">LTF · TBS → Model #1 → Entry</span>
+            <span class="chart-sub" id="ltfSub"></span>
+          </div>
+          <div class="chart-host" id="ltfChart"></div>
+        </div>
+        <div class="loading" id="loading"><div class="spinner"></div><span id="loadingText">Connecting to live data…</span></div>
+      </div>
+
+      <div class="setups-card">
+        <div class="card-head">
+          <span>Setups found in loaded data</span>
+          <span class="muted small" id="setupsSummary"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl" id="setupsTable">
+            <thead><tr><th>C1 (CAT)</th><th>Dir</th><th>State</th><th>Type</th><th>Key level</th><th>Time</th><th>SMT</th><th>A+</th><th>Entry</th><th>SL</th><th>TP1 / TP2</th><th>Grade</th><th>Result</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <aside class="ticket" id="ticket">
+      <div class="card">
+        <div class="card-head">
+          <span>Trade ticket</span>
+          <span class="grade" id="tkGrade">—</span>
+        </div>
+        <div class="state-banner" id="tkState">—</div>
+        <ol class="stepper" id="tkStepper">
+          <li>CRT C1</li><li>Sweep / TBS</li><li>Model #1</li><li>Entry</li><li>TP1 + BE</li><li>TP2</li>
+        </ol>
+        <div class="seg small block-seg" id="entryModelSeg" title="Switch entry model on chart &amp; ticket (PDF 2 p.18)">
+          <button data-emodel="model1" class="active">Model #1 (TBS)</button>
+          <button data-emodel="ote">Model #2 (OTE)</button>
+          <button data-emodel="kod">Model #3 (KOD)</button>
+        </div>
+        <div class="levels" id="tkLevels"></div>
+        <div class="sizing" id="tkSizing"></div>
+        <div class="tk-actions">
+          <button class="btn primary" id="tkLog">+ Log to journal</button>
+          <button class="btn ghost" id="tkCopy">Copy levels</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span>Strategy audit</span><span class="muted small" id="tkScore"></span></div>
+        <div class="checks" id="tkChecks"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ============ BACKTEST ============ -->
+  <main class="view" id="view-backtest">
+    <aside class="bt-controls card">
+      <div class="card-head"><span>Backtest on real history</span></div>
+      <p class="muted small">Replays the <b>exact</b> live rules over real candles. Entry at the trigger candle's close, one trade at a time, same-candle SL/TP counted as a loss, spread not included.</p>
+      <label class="field"><span>Market</span><select id="btMarket"></select></label>
+      <label class="field"><span>Timeframe pair</span><select id="btPair"></select></label>
+      <label class="field"><span>LTF candles of history</span>
+        <select id="btBars">
+          <option value="10000">10,000</option>
+          <option value="20000" selected>20,000</option>
+          <option value="40000">40,000</option>
+        </select>
+      </label>
+      <div class="field"><span>Filters</span>
+        <label class="tog"><input type="checkbox" id="btKl" /> Require key level</label>
+        <label class="tog"><input type="checkbox" id="btTime" /> Require AMD time (forex/crypto)</label>
+        <label class="tog"><input type="checkbox" id="btSmt" /> Require SMT (forex/crypto)</label>
+        <label class="tog"><input type="checkbox" id="btAplus" /> Require A+ TBS (2–6 inside)</label>
+      </div>
+      <button class="btn primary block" id="btRun">▶ Run backtest</button>
+      <div class="bt-progress muted small" id="btProgress"></div>
+    </aside>
+    <section class="bt-results">
+      <div class="kpis" id="btKpis"></div>
+      <div class="card">
+        <div class="card-head"><span>Equity in R — with 50% rule (green) vs holding full size to TP2 (red)</span><span class="muted small" id="btSpan"></span></div>
+        <div class="eq-host" id="btEquity"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span>Trades</span><span class="muted small" id="btFunnel"></span></div>
+        <div class="table-wrap tall">
+          <table class="tbl" id="btTable">
+            <thead><tr><th>#</th><th>Entry (CAT)</th><th>Dir</th><th>Grade</th><th>Type</th><th>KL</th><th>Inside</th><th>Time</th><th>SMT</th><th>RR1/RR2</th><th>Outcome</th><th>R (50%)</th><th>R (no 50%)</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ JOURNAL ============ -->
+  <main class="view" id="view-journal">
+    <aside class="card j-form">
+      <div class="card-head"><span>Log a trade</span></div>
+      <form id="jForm">
+        <label class="field"><span>Market</span><input id="jMarket" required /></label>
+        <div class="row2">
+          <label class="field"><span>Pair</span><input id="jPair" value="4H → 5m" /></label>
+          <label class="field"><span>Direction</span><select id="jDir"><option>SELL</option><option>BUY</option></select></label>
+        </div>
+        <div class="row2">
+          <label class="field"><span>Entry model</span><select id="jModel"><option>Model #1</option><option>CRT OTE</option><option>KOD</option></select></label>
+          <label class="field"><span>Result (R)</span><input id="jR" type="number" step="0.01" value="0" /></label>
+        </div>
+        <label class="field"><span>Followed 50% rule?</span><select id="j50"><option>Yes</option><option>No</option></select></label>
+        <label class="field"><span>Mistake</span>
+          <select id="jMistake">
+            <option>None — followed the plan</option>
+            <option>Entered before Model #1 candle closed</option>
+            <option>Skipped the 50% rule</option>
+            <option>Traded outside AMD window</option>
+            <option>No HTF key level</option>
+            <option>Low RR to 50%</option>
+            <option>Moved / removed stop loss</option>
+            <option>Revenge / over-trading</option>
+          </select>
+        </label>
+        <label class="field"><span>Notes</span><textarea id="jNotes" rows="3"></textarea></label>
+        <button class="btn primary block" type="submit">Save entry</button>
+      </form>
+    </aside>
+    <section class="j-list">
+      <div class="kpis" id="jKpis"></div>
+      <div class="card">
+        <div class="card-head"><span>Journal</span><span class="muted small">"The profitable trader is an unprofitable trader that fixed their mistakes." — CRT Unlocked</span></div>
+        <div class="table-wrap tall">
+          <table class="tbl" id="jTable">
+            <thead><tr><th>Date (CAT)</th><th>Market</th><th>Pair</th><th>Dir</th><th>Model</th><th>50%</th><th>R</th><th>Mistake</th><th>Notes</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ PLAYBOOK ============ -->
+  <main class="view" id="view-playbook">
+    <section class="pb">
+      <div class="card">
+        <div class="card-head"><span>AMD windows in Central African Time</span><span class="muted small" id="pbDst"></span></div>
+        <table class="tbl" id="pbTable"><thead><tr><th>Cycle</th><th>Candle</th><th>Phase</th><th>New York</th><th>CAT (you)</th></tr></thead><tbody></tbody></table>
+        <p class="muted small" id="pbNext"></p>
+      </div>
+      <div class="card">
+        <div class="card-head"><span>How the timeframes line up</span></div>
+        <table class="tbl"><thead><tr><th>Pair</th><th>Style</th><th>HTF candle built from</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>1H → 1m</td><td>Scalper</td><td>Native 1H</td><td>1H boundaries are the same in NY, UTC and CAT.</td></tr>
+            <tr><td>4H → 5m</td><td>Intraday</td><td>Forex/crypto: <b>NY-aligned 4H built from 1H</b> · Synthetics: native 4H</td><td>Broker 4H candles open 02/06/10/14/18/22 CAT; PDF 2's cycle opens at NY 01/05/09 (07/11/15 CAT in summer).</td></tr>
+            <tr><td>1D → 1H</td><td>Day trade</td><td>Forex/crypto: NY 17:00 day · Synthetics: native day (02:00 CAT)</td><td>Matches the forex trading day used for weekly AMD (Mon/Tue/Wed).</td></tr>
+            <tr><td>1W → 4H</td><td>Swing</td><td>Weekly built from daily</td><td>Deriv's largest native candle is 1 day.</td></tr>
+            <tr><td>1M → 1D</td><td>Position</td><td>Monthly built from daily</td><td>Same reason.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card span2">
+        <div class="card-head"><span>The unified strategy (what the engine checks)</span></div>
+        <div class="steps">
+          <div class="step"><b>1 · HTF CRT candle</b><p>Closed candle with body ≥ 50% of its range and larger than each wick. Mark CRTH, 50%, CRTL. <em>PDF 1 p.7–8</em></p></div>
+          <div class="step"><b>2 · Key level</b><p>CRT must trade into a real OB, FVG, or purge an old high/low (OHP/OLP). <em>PDF 1 p.9–14</em></p></div>
+          <div class="step"><b>3 · Time + SMT</b><p>Sweep inside the AMD manipulation window; correlated pair fails to sweep. <b>Off for synthetics.</b> <em>PDF 2 p.12–14, 24–28</em></p></div>
+          <div class="step"><b>4 · TBS</b><p>First LTF candle that <b>closes</b> beyond CRTH/CRTL. 2–6 inside candles before it = A+. <em>PDF 1 p.16–17</em></p></div>
+          <div class="step"><b>5 · Model #1 entry</b><p>Enter when an LTF candle closes beyond the Model #1 candle. Invalid if the HTF candle closes beyond the level or price reaches 50% first. <em>PDF 1 p.18–20, PDF 2 p.18</em></p></div>
+          <div class="step"><b>6 · Stop loss</b><p>Beyond the manipulation extreme + 0.1 ATR (+1 ATR against Boom/Crash/GainX/PainX spikes).</p></div>
+          <div class="step"><b>7 · 50% rule</b><p>Close half at 50% of the CRT and move SL to breakeven; runner to the opposite end. Skip if RR to 50% &lt; 1. <em>PDF 1 p.8, 29 · PDF 2 p.16</em></p></div>
+          <div class="step"><b>8 · OTE / KOD</b><p>Missed Model #1? Use the 50–79% OTE of the displacement leg, or the KOD sweep after a close past 50%. <em>PDF 2 p.18–22</em></p></div>
+        </div>
+      </div>
+      <div class="card span2">
+        <div class="card-head"><span>Synthetic indices — what changes</span></div>
+        <p class="muted">Deriv and Weltrade synthetics are generated by an algorithm 24/7. There are no sessions and no correlated assets, so <b>Time and SMT are switched off</b> for them and are not counted in the grade. Candle-geometry rules (CRT, key levels, TBS, Model #1, 50% rule) still run. Whether they have an edge on a given synthetic is something only the <b>Backtest</b> tab can tell you.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ SETTINGS ============ -->
+  <div class="modal" id="settingsModal" hidden>
+    <div class="modal-card">
+      <div class="card-head"><span>Strategy &amp; risk settings</span><button class="icon-btn" id="settingsClose">✕</button></div>
+      <div class="row2">
+        <label class="field"><span>Account balance ($)</span><input type="number" id="sBalance" step="10" /></label>
+        <label class="field"><span>Risk per trade (%)</span><input type="number" id="sRisk" step="0.25" /></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span>Min RR to 50% (TP1)</span><input type="number" id="sMinRR" step="0.1" /></label>
+        <label class="field"><span>Max HTF candles to wait for sweep</span><input type="number" id="sMaxWait" min="1" max="12" /></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span>SL buffer (× ATR)</span><input type="number" id="sBuf" step="0.05" /></label>
+        <label class="field"><span>Extra buffer vs spikes (× ATR)</span><input type="number" id="sSpike" step="0.1" /></label>
+      </div>
+      <label class="field"><span>Model #1 definition</span>
+        <select id="sModel1">
+          <option value="pdf2">PDF 2 — thick candle INTO the level; enter on close beyond it (reversal)</option>
+          <option value="pdf1">PDF 1 — first thick opposing candle after TBS; enter on close beyond it</option>
+        </select>
+      </label>
+      <label class="field"><span>Min CRT body ratio</span><input type="number" id="sBody" step="0.05" min="0.3" max="0.9" /></label>
+      <div class="row2">
+        <label class="field"><span>Telegram Bot Token (optional)</span><input type="text" id="sTgToken" placeholder="123456:ABC-DEF..." /></label>
+        <label class="field"><span>Telegram Chat ID (optional)</span><input type="text" id="sTgChat" placeholder="e.g. 987654321" /></label>
+      </div>
+      <div class="modal-actions"><button class="btn primary" id="settingsSave">Save &amp; re-scan</button></div>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toasts"></div>
+
+  <script src="js/time.js"></script>
+  <script src="js/feeds.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/backtest.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
