@@ -164,6 +164,25 @@
       new ResizeObserver(onResize).observe(container);
       container.addEventListener('wheel', () => this.requestDraw(), { passive: true });
       container.addEventListener('mouseup', () => this.requestDraw());
+      this.countdownTimer = setInterval(() => this.requestDraw(), 1000);
+    }
+
+    getCountdownInfo() {
+      const g = Math.max(this.granMs || 60000, 60000);
+      const now = Date.now();
+      const last = this.data.length ? this.data[this.data.length - 1] : null;
+      let closeMs = (Math.floor(now / g) + 1) * g;
+      if (last && last.time + g > now && last.time <= now + g) {
+        closeMs = last.time + g;
+      }
+      const remSec = Math.max(0, Math.floor((closeMs - now) / 1000));
+      const h = Math.floor(remSec / 3600);
+      const m = Math.floor((remSec % 3600) / 60);
+      const s = remSec % 60;
+      const pad = n => String(n).padStart(2, '0');
+      const short = h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+      const long = h > 0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${m}m ${pad(s)}s`;
+      return { remSec, short, long };
     }
 
     updateOhlcBar(param) {
@@ -423,8 +442,23 @@
       }
 
       // 4. TradingView Long/Short Position Tool (Red Stop-Loss Zone + Blue Target Zone)
-      if (this.ann.positionBox) {
+      if (this.ann && this.ann.positionBox) {
         this.drawPositionBox(ctx, this.ann.positionBox, plotW, plotH);
+      }
+
+      // 5. Live Candle Close Countdown Pill at Current Price (TradingView style)
+      const lastBar = this.data[this.data.length - 1];
+      if (lastBar) {
+        const yLast = this.y(lastBar.close);
+        if (yLast != null && yLast > 12 && yLast < plotH - 18) {
+          const cd = this.getCountdownInfo();
+          const isUp = lastBar.close >= lastBar.open;
+          const badgeBg = isUp ? 'rgba(8, 153, 129, 0.92)' : 'rgba(242, 54, 69, 0.92)';
+          const txt = `Closes in ${cd.long}`;
+          ctx.font = '600 10px "JetBrains Mono", monospace';
+          const tw = ctx.measureText(txt).width + 10;
+          this.pill(ctx, txt, plotW - tw - 4, yLast + 14, badgeBg, '#ffffff', plotW);
+        }
       }
 
       ctx.restore();

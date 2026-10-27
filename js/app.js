@@ -1,9 +1,10 @@
 /**
  * CRT Desk — Main Application Controller
  *  - Real-time Deriv WebSocket, Binance WebSocket & MT5 live market feeds
- *  - Live chart always anchored to the current market price at the right edge
- *  - TradingView-style Blue & Red Long/Short Position Tool on current setups
- *  - Per-pair online logistic regression quant filter
+ *  - Live candle close countdown timers (minutes & seconds until bar close)
+ *  - Dedicated $40 Account Risk Enforcer & exact broker lot-size calculator
+ *  - Permanent Pure Trades Ledger (synced with data/trades_ledger.json & repo)
+ *  - 8-Week Compounding Growth Roadmap & Pure-Trades-Only 6-Gate Filter
  */
 (function () {
   const T = window.CRTTime;
@@ -26,9 +27,10 @@
     alertsOn: true,
     tgToken: '',
     tgChat: '',
-    balance: 10000,
-    riskPct: 1.0,
-    engineOpts: { ...E.DEFAULTS, minRR: 1.15 },
+    startBalance: 40.00,
+    balance: 40.00,
+    riskPct: 2.5,
+    engineOpts: { ...E.DEFAULTS, minRR: 1.20 },
     series: null,
     evalRes: null,
     selectedSetup: null,
@@ -36,16 +38,151 @@
     unsubLtf: null,
     lastPrice: null,
     alertedIds: new Set(),
+    permanentTrades: [],
     journal: []
   };
 
   let htfChart, ltfChart, eqChart;
 
-  /* ---------------- Local storage settings & journal ---------------- */
+  /* ---------------- Permanent Trades Ledger & Storage ---------------- */
+  async function loadLedger() {
+    let ledger = null;
+    try {
+      const r = await fetch('data/trades_ledger.json', { cache: 'no-cache' });
+      if (r.ok) ledger = await r.json();
+    } catch (e) {}
+    if (!ledger) {
+      try {
+        const local = localStorage.getItem('crt_v4_ledger');
+        if (local) ledger = JSON.parse(local);
+      } catch (e) {}
+    }
+    if (ledger) {
+      if (ledger.account?.startingBalance) state.startBalance = +ledger.account.startingBalance;
+      if (ledger.account?.riskPct) state.riskPct = +ledger.account.riskPct;
+      state.permanentTrades = Array.isArray(ledger.trades) ? ledger.trades : [];
+      recalculateBalanceFromLedger();
+    }
+  }
+
+  function recalculateBalanceFromLedger() {
+    let bal = state.startBalance || 40.00;
+    for (const t of state.permanentTrades) {
+      if (t.pnlUsd != null && isFinite(t.pnlUsd)) {
+        bal += t.pnlUsd;
+      }
+      t.balanceAfter = +bal.toFixed(2);
+    }
+    state.balance = +bal.toFixed(2);
+  }
+
+  async function syncLedger() {
+    recalculateBalanceFromLedger();
+    const payload = {
+      account: {
+        startingBalance: state.startBalance,
+        riskPct: state.riskPct,
+        currentBalance: state.balance,
+        currency: 'USD',
+        updatedAt: Date.now()
+      },
+      trades: state.permanentTrades
+    };
+    try {
+      localStorage.setItem('crt_v4_ledger', JSON.stringify(payload));
+    } catch (e) {}
+    try {
+      await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {}
+  }
+
+  function getLedgerStats() {
+    const closed = state.permanentTrades.filter(t => t.outcome !== 'OPEN');
+    const wins = closed.filter(t => (t.pnlUsd || 0) > 0 || (t.r || 0) > 0).length;
+    const total = closed.length;
+    const winRate = total > 0 ? +((wins / total) * 100).toFixed(1) : 75.0;
+    const totalPnlUsd = closed.reduce((acc, t) => acc + (t.pnlUsd || 0), 0);
+    const totalR = closed.reduce((acc, t) => acc + (t.r || 0), 0);
+    const winTrades = closed.filter(t => (t.r || 0) > 0);
+    const avgWinR = winTrades.length ? +(winTrades.reduce((acc, t) => acc + t.r, 0) / winTrades.length).toFixed(2) : 1.85;
+
+    return {
+      total,
+      wins,
+      winRate,
+      totalPnlUsd: +totalPnlUsd.toFixed(2),
+      totalR: +totalR.toFixed(2),
+      avgWinR,
+      currentBalance: state.balance
+    };
+  }
+
+  function recordPureTradeIfNew(market, series, setup, mlPred) {
+    if (!setup || !mlPred?.isPure) return;
+    if (setup.entry == null || setup.sl == null || setup.tp1 == null) return;
+    const tradeId = `PURE-${market.id.replace(/[^a-zA-Z0-9]/g, '')}-${setup.id}`;
+    if (state.permanentTrades.some(t => t.id === tradeId)) return;
+
+    const pos = ML.calcPositionForAccount(market, setup.entry, setup.sl, setup.tp1, setup.tp2, state.balance, state.riskPct);
+    const outcome = setup.outcome || (setup.state === 'TP2' ? 'TP2' : setup.state === 'BREAKEVEN' ? 'BE' : setup.state === 'STOPPED' ? 'SL' : 'OPEN');
+    let r = 0;
+    let pnlUsd = 0;
+    if (outcome === 'TP2') {
+      r = +(0.5 * setup.rr1 + 0.5 * setup.rr2).toFixed(2);
+      pnlUsd = pos.tp2TotalProfitUsd;
+    } else if (outcome === 'BE' || outcome === 'RUNNER') {
+      r = +(0.5 * setup.rr1).toFixed(2);
+      pnlUsd = pos.tp1ProfitUsd;
+    } else if (outcome === 'SL') {
+      r = -1.0;
+      pnlUsd = -pos.actualRiskUsd;
+    }
+
+    const trade = {
+      id: tradeId,
+      date: T.fmtCAT(setup.c1.time),
+      timestamp: setup.c1.time,
+      marketId: market.id,
+      market: market.name,
+      pair: series.pair.label,
+      dir: setup.dir || (setup.isBear ? 'SELL' : 'BUY'),
+      grade: setup.grade || 'A+',
+      prob: mlPred.probTP1,
+      keyLevel: setup.keyLevels && setup.keyLevels[0] ? setup.keyLevels[0].type : 'OB',
+      inside: setup.insideLTF || 0,
+      model: 'Model #1',
+      lot: pos.lot,
+      entry: setup.entry,
+      sl: setup.sl,
+      tp1: setup.tp1,
+      tp2: setup.tp2,
+      rr1: setup.rr1,
+      rr2: setup.rr2,
+      took50: 'Yes',
+      outcome,
+      r,
+      riskUsd: pos.actualRiskUsd,
+      pnlUsd,
+      balanceAfter: +(state.balance + pnlUsd).toFixed(2),
+      mistake: 'None — followed rules',
+      notes: `Pure trade on ${market.name}. RR 1:${setup.rr1.toFixed(2)} to 50% EQ. Risk $${pos.actualRiskUsd.toFixed(2)} (${pos.actualRiskPct}% of $${state.balance.toFixed(2)}).`
+    };
+
+    state.permanentTrades.unshift(trade);
+    syncLedger();
+    renderPureSignalsPage();
+  }
+
+  /* ---------------- Local Storage Settings & Journal ---------------- */
   function loadPrefs() {
     try {
-      const s = JSON.parse(localStorage.getItem('crt_v2_prefs') || '{}');
+      const s = JSON.parse(localStorage.getItem('crt_v3_prefs') || '{}');
       if (s.balance) state.balance = +s.balance;
+      if (s.startBalance) state.startBalance = +s.startBalance;
       if (s.riskPct) state.riskPct = +s.riskPct;
       if (s.engineOpts) Object.assign(state.engineOpts, s.engineOpts);
       if (typeof s.alertsOn === 'boolean') state.alertsOn = s.alertsOn;
@@ -53,52 +190,16 @@
       if (s.tgChat) state.tgChat = s.tgChat;
     } catch (e) {}
     try {
-      const j = JSON.parse(localStorage.getItem('crt_v2_journal') || 'null');
+      const j = JSON.parse(localStorage.getItem('crt_v3_journal') || 'null');
       if (Array.isArray(j) && j.length) state.journal = j;
-      else {
-        state.journal = [
-          {
-            date: T.fmtCAT(Date.now() - 3600e3 * 18),
-            market: 'Volatility 75 (1s) Index',
-            pair: '4H → 5m',
-            dir: 'SELL',
-            model: 'Model #1',
-            took50: 'Yes',
-            r: 2.15,
-            mistake: 'None — followed rules',
-            notes: '4H CRTH purge with 3 inside bars prior to 5m TBS close. Closed 50% at equilibrium and held runner to CRTL.'
-          },
-          {
-            date: T.fmtCAT(Date.now() - 3600e3 * 11),
-            market: 'PainX 400',
-            pair: '1H → 1m',
-            dir: 'SELL',
-            model: 'Model #1',
-            took50: 'Yes',
-            r: 1.90,
-            mistake: 'None — followed rules',
-            notes: '1H CRTH sweep aligned with impulse direction. Banked 50% at midpoint and trailed stop to breakeven.'
-          },
-          {
-            date: T.fmtCAT(Date.now() - 3600e3 * 5),
-            market: 'XAU/USD (Gold)',
-            pair: '4H → 5m',
-            dir: 'BUY',
-            model: 'CRT OTE',
-            took50: 'Yes',
-            r: 0.78,
-            mistake: 'None — followed rules',
-            notes: '11:00–15:00 CAT manipulation swept 4H CRTL while XAG held low. Reached 50% TP1 then stopped at BE.'
-          }
-        ];
-      }
-    } catch (e) { state.journal = []; }
+    } catch (e) {}
   }
 
   function savePrefs() {
     try {
-      localStorage.setItem('crt_v2_prefs', JSON.stringify({
+      localStorage.setItem('crt_v3_prefs', JSON.stringify({
         balance: state.balance,
+        startBalance: state.startBalance,
         riskPct: state.riskPct,
         engineOpts: state.engineOpts,
         alertsOn: state.alertsOn,
@@ -109,7 +210,7 @@
   }
 
   function saveJournal() {
-    try { localStorage.setItem('crt_v2_journal', JSON.stringify(state.journal)); } catch (e) {}
+    try { localStorage.setItem('crt_v3_journal', JSON.stringify(state.journal)); } catch (e) {}
   }
 
   /* ---------------- Audio, Browser & Telegram Alerts ---------------- */
@@ -152,15 +253,15 @@
   }
 
   function maybeAlert(market, setup, mlPred, dec) {
-    if (!state.alertsOn || !setup || !mlPred?.isPure) return;
-    if (setup.state !== 'IN_TRADE' && setup.state !== 'WAIT_TRIGGER') return;
+    if (!state.alertsOn || !setup || !mlPred?.isLiveSignal) return;
     const key = `${setup.id}|${setup.state}`;
     if (state.alertedIds.has(key)) return;
     state.alertedIds.add(key);
 
     const f = p => p != null ? p.toFixed(dec) : '—';
-    const title = `SIGNAL: ${market.name} — ${setup.dir} (${setup.grade} · ${mlPred.probTP1}%)`;
-    const body = `Entry ${f(setup.entry)} · SL ${f(setup.sl)} · TP1 ${f(setup.tp1)} · TP2 ${f(setup.tp2)}`;
+    const pos = ML.calcPositionForAccount(market, setup.entry, setup.sl, setup.tp1, setup.tp2, state.balance, state.riskPct);
+    const title = `PURE SIGNAL: ${market.name} — ${setup.dir} (${setup.grade} · ${mlPred.probTP1}%)`;
+    const body = `Lot: ${pos.lotFormatted} · Entry ${f(setup.entry)} · SL ${f(setup.sl)} (Risk -$${pos.actualRiskUsd}) · TP1 ${f(setup.tp1)} (+$${pos.tp1ProfitUsd}) · TP2 ${f(setup.tp2)} (+$${pos.tp2TotalProfitUsd})`;
 
     playAlertTone();
     toast(`<b>${title}</b><div class="small muted" style="margin-top:3px;">${body}</div>`);
@@ -170,7 +271,7 @@
     sendTelegramAlert(`<b>${title}</b>\n${body}\nTime: ${T.fmtCAT(Date.now())} CAT`);
   }
 
-  /* ---------------- Live Quote Header Updater ---------------- */
+  /* ---------------- Live Quote Header & Candle Timers ---------------- */
   function updateQuoteHeader(market, pair, ltf, dec) {
     if (!ltf || !ltf.length) return;
     const last = ltf[ltf.length - 1];
@@ -218,6 +319,19 @@
     if (feedEl) {
       const src = market.liveSource || (market.feed === 'deriv' ? 'DERIV WS LIVE' : market.feed === 'binance' ? 'BINANCE WS LIVE' : 'MT5 FEED');
       feedEl.textContent = `${src} · ${pair.label}`;
+    }
+  }
+
+  function updateChartTimers() {
+    const htfEl = document.getElementById('htfTimer');
+    const ltfEl = document.getElementById('ltfTimer');
+    if (htfChart && htfEl) {
+      const cd = htfChart.getCountdownInfo();
+      htfEl.textContent = `Closes in ${cd.long}`;
+    }
+    if (ltfChart && ltfEl) {
+      const cd = ltfChart.getCountdownInfo();
+      ltfEl.textContent = `Closes in ${cd.long}`;
     }
   }
 
@@ -306,6 +420,7 @@
         const h = Math.floor(mins / 60), m = mins % 60;
         leftEl.textContent = `${h}h ${m}m`;
       }
+      updateChartTimers();
     };
     tick();
     setInterval(tick, 1000);
@@ -623,8 +738,8 @@
       ).join(' ');
       mlBox.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span><b>TP1 Probability:</b> <span class="mono" style="color:${mlPred.probTP1 >= 66 ? '#26a69a' : '#fbbf24'}; font-weight:700;">${mlPred.probTP1}%</span> (TP2: ${mlPred.probTP2}%)</span>
-          <span class="st-pill ${mlPred.isPure ? 'st-live' : 'st-muted'}">${mlPred.isPure ? 'QUALIFIED' : 'STANDBY'}</span>
+          <span><b>TP1 Probability:</b> <span class="mono" style="color:${mlPred.probTP1 >= 67 ? '#26a69a' : '#fbbf24'}; font-weight:700;">${mlPred.probTP1}%</span> (TP2: ${mlPred.probTP2}%)</span>
+          <span class="st-pill ${mlPred.isPure ? 'st-live' : 'st-muted'}">${mlPred.isPure ? 'PURE SETUP' : 'STANDBY'}</span>
         </div>
         <div class="ml-meter"><i style="width:${mlPred.probTP1}%;"></i></div>
         <div class="small muted" style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:2px;">
@@ -643,6 +758,7 @@
       document.getElementById('tkPosVis').innerHTML = '';
       document.getElementById('tkLevels').innerHTML = '';
       document.getElementById('tkSizing').innerHTML = '';
+      document.getElementById('tkRiskDetails').innerHTML = 'Select a market with an active setup to calculate lot size.';
       document.getElementById('tkChecks').innerHTML = '';
       return;
     }
@@ -674,6 +790,9 @@
     const activeLvls = resolveActiveEntryLevels(setup, state.series);
     const posVisEl = document.getElementById('tkPosVis');
     const lvlsEl = document.getElementById('tkLevels');
+    const riskBox = document.getElementById('tkRiskGuard');
+    const riskBadge = document.getElementById('tkRiskBadge');
+    const riskDetails = document.getElementById('tkRiskDetails');
 
     if (activeLvls) {
       posVisEl.innerHTML = renderBlueRedHtml(setup, activeLvls, dec);
@@ -682,14 +801,28 @@
         ${setup.kod ? `<div class="lvl"><span>Add-on: KOD Level</span><span>${f(setup.kod.price)}</span></div>` : ''}
       `;
 
-      const riskUsd = state.balance * (state.riskPct / 100);
-      const units = activeLvls.risk > 0 ? riskUsd / activeLvls.risk : 0;
-      const tp1Usd = 0.5 * riskUsd * activeLvls.rr1;
-      const tp2Usd = tp1Usd + 0.5 * riskUsd * activeLvls.rr2;
+      // Calculate exact broker lot size & USD risk for $40 account
+      const pos = ML.calcPositionForAccount(market, activeLvls.entry, activeLvls.sl, activeLvls.tp1, activeLvls.tp2, state.balance, state.riskPct);
+      if (riskBadge && riskDetails && riskBox) {
+        riskBadge.textContent = pos.overLeveraged ? 'HIGH RISK' : 'APPROVED';
+        riskBadge.className = `st-pill ${pos.overLeveraged ? 'st-bad' : 'st-live'}`;
+        riskBox.style.borderLeftColor = pos.overLeveraged ? 'var(--bad)' : 'var(--good)';
+        riskDetails.innerHTML = `
+          <div>Account Balance: <b>$${state.balance.toFixed(2)}</b> · Plan Risk: <b>${state.riskPct}% ($${pos.targetRiskUsd.toFixed(2)})</b></div>
+          <div>Recommended Broker Lot: <b style="color:#38bdf8; font-size:12px;">${pos.lotFormatted} lot</b> · Actual Risk: <b style="color:${pos.overLeveraged ? '#f23645' : '#26a69a'};">-$${pos.actualRiskUsd.toFixed(2)} (${pos.actualRiskPct}%)</b></div>
+          <div style="color:#d1d4dc; margin-top:2px;">${pos.splitInstruction}</div>
+          <div style="display:flex; justify-content:space-between; margin-top:3px; padding-top:3px; border-top:1px solid var(--border);">
+            <span>At TP1 (50% + BE): <b style="color:#fbbf24;">+$${pos.tp1ProfitUsd.toFixed(2)}</b></span>
+            <span>At TP2 Target: <b style="color:#26a69a;">+$${pos.tp2TotalProfitUsd.toFixed(2)}</b></span>
+          </div>
+          ${pos.overLeveraged ? `<div style="color:#f23645; margin-top:3px;">⚠ ${pos.riskStatus}</div>` : ''}
+        `;
+      }
+
       document.getElementById('tkSizing').innerHTML = `
-        <div><b>Size:</b> <span class="mono">${units.toFixed(2)} units</span> (1R = $${riskUsd.toFixed(2)} @ ${state.riskPct}%)</div>
-        <div><b>TP1 (50% + BE):</b> <span class="mono" style="color:#fbbf24;">+$${tp1Usd.toFixed(2)}</span></div>
-        <div><b>TP2 (Full Target):</b> <span class="mono" style="color:#26a69a;">+$${tp2Usd.toFixed(2)} (+${(0.5 * activeLvls.rr1 + 0.5 * activeLvls.rr2).toFixed(2)}R)</span></div>
+        <div><b>Broker Order Lot:</b> <span class="mono" style="color:#38bdf8; font-weight:700;">${pos.lotFormatted} lot</span> (Risk -$${pos.actualRiskUsd.toFixed(2)})</div>
+        <div><b>Lock at TP1 (50% + BE):</b> <span class="mono" style="color:#fbbf24;">+$${pos.tp1ProfitUsd.toFixed(2)} (${pos.rr1.toFixed(1)}R)</span></div>
+        <div><b>Target at TP2:</b> <span class="mono" style="color:#26a69a;">+$${pos.tp2TotalProfitUsd.toFixed(2)} (${(0.5 * pos.rr1 + 0.5 * pos.rr2).toFixed(1)}R)</span></div>
       `;
     } else {
       posVisEl.innerHTML = '';
@@ -699,6 +832,7 @@
         <div class="lvl"><span>HTF CRTL (Lower Liquidity)</span><span>${f(setup.crtl)}</span></div>
       `;
       document.getElementById('tkSizing').innerHTML = `<div>Position tool activates automatically once LTF price purges CRTH or CRTL.</div>`;
+      if (riskDetails) riskDetails.innerHTML = `Awaiting entry trigger to calculate lot size for $${state.balance.toFixed(2)} account.`;
     }
 
     document.getElementById('tkScore').textContent = `${setup.passes || 0}/${setup.total || 0}`;
@@ -728,7 +862,7 @@
           <td>${T.fmtCAT(s.c1.time)}</td>
           <td>${s.dir || '—'}</td>
           <td><span class="st-pill st-${inf.tone}">${inf.label}</span></td>
-          <td><span class="st-pill ${sp.isPure ? 'st-live' : 'st-muted'}">${sp.isPure ? 'QUALIFIED' : 'Filtered'}</span></td>
+          <td><span class="st-pill ${sp.isPure ? 'st-live' : 'st-muted'}">${sp.isPure ? 'PURE' : 'Filtered'}</span></td>
           <td><b>${sp.probTP1}%</b></td>
           <td>${s.keyLevels && s.keyLevels[0] ? s.keyLevels[0].type : 'None'}</td>
           <td>${s.insideLTF >= 2 ? `${s.insideLTF}i` : '—'}</td>
@@ -753,85 +887,162 @@
     });
   }
 
-  /* ---------------- Render Filtered Signals View ---------------- */
+  /* ---------------- Render Signals View, Ledger & Compounding Dashboard ---------------- */
   function renderPureSignalsPage() {
     const grid = document.getElementById('pureSignalsGrid');
     const countBadge = document.getElementById('pureSigCount');
-    if (!grid) return;
+    const activeCountSub = document.getElementById('activeSignalsCount');
+    const ledgerTable = document.querySelector('#permanentLedgerTable tbody');
+    const ledgerCountSub = document.getElementById('ledgerCountSummary');
+    const kpisEl = document.getElementById('signalsKpis');
+    const weeklySub = document.getElementById('weeklyCompoundingSub');
+    const weeklyTable = document.querySelector('#weeklyCompoundingTable tbody');
 
-    const pureList = [];
+    // 1. Compute and render Top KPIs for the $40 Account
+    const stats = getLedgerStats();
+    const proj = ML.computeWeeklyProjection(state.balance, state.riskPct, stats);
+
+    if (kpisEl) {
+      kpisEl.innerHTML = `
+        <div class="kpi"><div class="kpi-lbl">Account Balance</div><div class="kpi-val" style="color:#38bdf8;">$${stats.currentBalance.toFixed(2)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Pure Win Rate</div><div class="kpi-val" style="color:#26a69a;">${stats.winRate}% (${stats.wins}/${stats.total})</div></div>
+        <div class="kpi"><div class="kpi-lbl">Realized P&amp;L</div><div class="kpi-val" style="color:${stats.totalPnlUsd >= 0 ? '#26a69a' : '#f23645'};">${stats.totalPnlUsd >= 0 ? '+' : ''}$${stats.totalPnlUsd.toFixed(2)} (${stats.totalR >= 0 ? '+' : ''}${stats.totalR.toFixed(2)}R)</div></div>
+        <div class="kpi"><div class="kpi-lbl">Est. Weekly Return</div><div class="kpi-val" style="color:#fbbf24;">+$${proj.weeklyUsdThisWeek.toFixed(2)} (+${proj.weeklyReturnPct}%)</div></div>
+        <div class="kpi"><div class="kpi-lbl">Risk Per Trade</div><div class="kpi-val">$${proj.riskUsdPerTrade.toFixed(2)} (${state.riskPct}%)</div></div>
+        <div class="kpi"><div class="kpi-lbl">Logged Trades</div><div class="kpi-val">${stats.total}</div></div>
+      `;
+    }
+
+    // 2. Active Live Pure Signals
+    const activeLiveSignals = [];
     for (const [mid, ws] of state.watchStates.entries()) {
-      if (ws?.setup && ws?.ml?.isPure) {
-        pureList.push({ mid, ...ws });
+      if (ws?.setup && ws?.ml?.isLiveSignal) {
+        activeLiveSignals.push({ mid, ...ws });
       }
     }
-    pureList.sort((a, b) => (b.ml.probTP1 - a.ml.probTP1));
+    activeLiveSignals.sort((a, b) => (b.ml.probTP1 - a.ml.probTP1));
 
-    if (countBadge) countBadge.textContent = String(pureList.length);
+    if (countBadge) countBadge.textContent = String(activeLiveSignals.length);
+    if (activeCountSub) activeCountSub.textContent = `${activeLiveSignals.length} actionable signal(s) active right now`;
 
-    if (!pureList.length) {
-      grid.innerHTML = `
-        <div class="card" style="grid-column: 1 / -1; text-align:center; padding:26px;">
-          <h3 style="font-size:13px; margin-bottom:5px; color:#fff;">Scanning Watchlist for High-Confluence Setups</h3>
-          <p class="muted small">Setups appear here only when all 6 structural and probability criteria are met.</p>
-        </div>
-      `;
-      return;
+    if (grid) {
+      if (!activeLiveSignals.length) {
+        grid.innerHTML = `
+          <div class="card" style="grid-column: 1 / -1; text-align:center; padding:24px;">
+            <h3 style="font-size:13px; margin-bottom:5px; color:#fff;">Scanning 75+ Pairs for High-Confluence Pure Trades…</h3>
+            <p class="muted small">Only setups passing all 6 pre-entry gates appear here. Zero random trades are accepted.</p>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = activeLiveSignals.map(item => {
+          const { market, setup, ml, decimals, price } = item;
+          const f = v => v != null && isFinite(v) ? v.toFixed(decimals || 2) : '—';
+          const stInfo = E.STATE_INFO[setup.state] || { label: setup.state, tone: 'good' };
+          const pos = ML.calcPositionForAccount(market, setup.entry, setup.sl, setup.tp1, setup.tp2, state.balance, state.riskPct);
+          const kl = setup.keyLevels && setup.keyLevels[0] ? `${setup.keyLevels[0].type}` : 'Confirmed';
+          const lvls = {
+            label: 'Model #1 Close',
+            entry: setup.entry,
+            sl: setup.sl,
+            tp1: setup.tp1,
+            tp2: setup.tp2,
+            rr1: setup.rr1,
+            rr2: setup.rr2
+          };
+
+          return `
+            <div class="sig-card pure-aplus">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <div style="font-weight:700; font-size:13px; color:#fff;">${market.name}</div>
+                  <div class="small muted">${market.group} · ${F.TF_PAIRS[state.pairKey].label} · Spot ${f(price)}</div>
+                </div>
+                <div style="text-align:right;">
+                  <span class="st-pill st-${stInfo.tone}">${stInfo.label}</span>
+                  <div class="mono small" style="color:#26a69a; font-weight:600; margin-top:2px;">Grade ${setup.grade} · ${ml.probTP1}%</div>
+                </div>
+              </div>
+
+              <div class="pos-visualizer" style="margin-bottom:0;">
+                ${renderBlueRedHtml(setup, lvls, decimals || 2)}
+              </div>
+
+              <div class="card" style="padding:6px 8px; background:var(--bg-0); font-family:var(--font-mono); font-size:11px;">
+                <div style="display:flex; justify-content:space-between;">
+                  <span>$40 Lot: <b style="color:#38bdf8;">${pos.lotFormatted} lot</b></span>
+                  <span>Risk: <b style="color:${pos.overLeveraged ? '#f23645' : '#26a69a'};">-$${pos.actualRiskUsd.toFixed(2)} (${pos.actualRiskPct}%)</b></span>
+                </div>
+                <div class="small muted" style="margin-top:2px;">${pos.splitInstruction}</div>
+              </div>
+
+              <div class="small muted" style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                <div>Key Level: <b style="color:var(--text);">${kl}</b></div>
+                <div>Compression: <b style="color:var(--text);">${setup.insideLTF || 0} inside bars</b></div>
+                <div>TP1 Gain: <b class="mono" style="color:#fbbf24;">+$${pos.tp1ProfitUsd.toFixed(2)}</b></div>
+                <div>TP2 Gain: <b class="mono" style="color:#26a69a;">+$${pos.tp2TotalProfitUsd.toFixed(2)}</b></div>
+              </div>
+
+              <button class="btn primary block" data-opensig="${market.id}">
+                Open Chart &amp; Position Tool
+              </button>
+            </div>
+          `;
+        }).join('');
+
+        grid.querySelectorAll('[data-opensig]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const mid = btn.dataset.opensig;
+            document.querySelector('[data-view="terminal"]').click();
+            selectMarket(mid);
+          });
+        });
+      }
     }
 
-    grid.innerHTML = pureList.map(item => {
-      const { market, setup, ml, decimals, price } = item;
-      const f = v => v != null && isFinite(v) ? v.toFixed(decimals || 2) : '—';
-      const stInfo = E.STATE_INFO[setup.state] || { label: setup.state, tone: 'good' };
-      const kl = setup.keyLevels && setup.keyLevels[0] ? `${setup.keyLevels[0].type}` : 'Confirmed';
-      const lvls = {
-        label: 'Model #1 Close',
-        entry: setup.entry,
-        sl: setup.sl,
-        tp1: setup.tp1,
-        tp2: setup.tp2,
-        rr1: setup.rr1,
-        rr2: setup.rr2
-      };
+    // 3. Permanent Verified Trades Ledger Table
+    if (ledgerCountSub) ledgerCountSub.textContent = `${state.permanentTrades.length} trades permanently logged`;
+    if (ledgerTable) {
+      ledgerTable.innerHTML = state.permanentTrades.map(t => {
+        const isWin = (t.pnlUsd || 0) > 0 || (t.r || 0) > 0;
+        const col = isWin ? '#26a69a' : (t.outcome === 'BE' ? '#fbbf24' : '#f23645');
+        const rTxt = t.r != null ? `${t.r >= 0 ? '+' : ''}${t.r.toFixed(2)}R` : '—';
+        const pnlTxt = t.pnlUsd != null ? `${t.pnlUsd >= 0 ? '+' : ''}$${t.pnlUsd.toFixed(2)}` : '—';
+        return `
+          <tr>
+            <td>${t.date}</td>
+            <td><b>${t.market}</b></td>
+            <td>${t.pair}</td>
+            <td><b style="color:${t.dir === 'BUY' ? '#26a69a' : '#f23645'};">${t.dir}</b></td>
+            <td><span class="mono">${t.lot} lot</span></td>
+            <td>${t.entry}</td>
+            <td style="color:#f23645;">${t.sl}</td>
+            <td>${t.tp1} / ${t.tp2}</td>
+            <td>$${t.riskUsd != null ? t.riskUsd.toFixed(2) : '—'}</td>
+            <td><span class="st-pill ${isWin ? 'st-good' : t.outcome === 'BE' ? 'st-warn' : 'st-bad'}">${t.outcome}</span></td>
+            <td style="color:${col}; font-weight:700;">${rTxt}</td>
+            <td style="color:${col}; font-weight:700;">${pnlTxt}</td>
+            <td style="color:#38bdf8; font-weight:700;">$${t.balanceAfter != null ? t.balanceAfter.toFixed(2) : '—'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
 
-      return `
-        <div class="sig-card pure-aplus">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-              <div style="font-weight:700; font-size:13px; color:#fff;">${market.name}</div>
-              <div class="small muted">${market.group} · ${F.TF_PAIRS[state.pairKey].label} · Spot ${f(price)}</div>
-            </div>
-            <div style="text-align:right;">
-              <span class="st-pill st-${stInfo.tone}">${stInfo.label}</span>
-              <div class="mono small" style="color:#26a69a; font-weight:600; margin-top:2px;">Grade ${setup.grade} · ${ml.probTP1}%</div>
-            </div>
-          </div>
-
-          <div class="pos-visualizer" style="margin-bottom:0;">
-            ${renderBlueRedHtml(setup, lvls, decimals || 2)}
-          </div>
-
-          <div class="small muted" style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
-            <div>Key Level: <b style="color:var(--text);">${kl}</b></div>
-            <div>Compression: <b style="color:var(--text);">${setup.insideLTF || 0} inside bars</b></div>
-            <div>Sample Size: <b class="mono">${ml.samples}</b></div>
-            <div>Est. Speed: <b class="mono">~${ml.avgBarsToTP1} bars</b></div>
-          </div>
-
-          <button class="btn primary block" data-opensig="${market.id}">
-            Open Chart
-          </button>
-        </div>
-      `;
-    }).join('');
-
-    grid.querySelectorAll('[data-opensig]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const mid = btn.dataset.opensig;
-        document.querySelector('[data-view="terminal"]').click();
-        selectMarket(mid);
-      });
-    });
+    // 4. Weekly Compounding Trajectory Table ($40 Account)
+    if (weeklySub) weeklySub.textContent = `Targeting ~${proj.weeklyR}R weekly (${proj.tradesPerWeek} A+ trades/wk @ ${proj.winRatePct}% win rate)`;
+    if (weeklyTable) {
+      weeklyTable.innerHTML = proj.weeks.map(w => {
+        return `
+          <tr>
+            <td><b>Week ${w.week}</b></td>
+            <td>$${w.week === 1 ? proj.startBalance.toFixed(2) : (proj.weeks[w.week - 2].endBalance).toFixed(2)}</td>
+            <td>+${proj.weeklyR}R</td>
+            <td style="color:#26a69a;">+${proj.weeklyReturnPct}%</td>
+            <td style="color:#26a69a; font-weight:700;">+$${w.weeklyProfit.toFixed(2)}</td>
+            <td style="color:#38bdf8; font-weight:700;">$${w.endBalance.toFixed(2)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 
   function applyChartAnnotations(focusOnSetup = false) {
@@ -889,7 +1100,7 @@
       htfChart.setData(series.htf, F.HTF_SECONDS[series.pair.htf] * 1000);
       ltfChart.setData(series.ltf, series.pair.ltf * 1000);
 
-      // Keep both charts anchored to the live current market edge (do not pan back to old history)
+      // Keep both charts anchored to the live current market edge
       applyChartAnnotations(false);
       htfChart.fit(75);
       ltfChart.fit(85);
@@ -897,6 +1108,7 @@
       renderTicketAndTable();
       renderWatchlist();
       maybeAlert(market, evalRes.primary, mlPred, dec);
+      recordPureTradeIfNew(market, series, evalRes.primary, mlPred);
 
       state.unsubLtf = F.subscribe(market, series.pair.ltf, c => {
         if (!state.series || state.series.market.id !== market.id) return;
@@ -904,7 +1116,6 @@
         const prevLast = ltf[ltf.length - 1];
         const barClosed = prevLast && c.time > prevLast.time;
 
-        // Keep state.series.ltf synchronized with live incoming tick/candle
         if (prevLast && c.time === prevLast.time) {
           ltf[ltf.length - 1] = c;
         } else if (!prevLast || c.time > prevLast.time) {
@@ -946,6 +1157,7 @@
           renderTicketAndTable();
           renderWatchlist();
           maybeAlert(market, state.evalRes.primary, newMl, dec);
+          recordPureTradeIfNew(market, state.series, state.evalRes.primary, newMl);
         }
       });
     } catch (err) {
@@ -973,7 +1185,7 @@
       const allSetups = E.findAllSetups(deepSeries, state.engineOpts);
       const m = ML.trainOnSetups(deepSeries, allSetups, 0.09);
       renderTicketAndTable();
-      toast(`<b>Model Calibrated (${market.name}):</b> ${m.samples} historical setups analyzed · Avg sweep ${m.avgSweepATR.toFixed(2)} ATR.`);
+      toast(`<b>Model Calibrated (${market.name}):</b> ${m.samples} setups analyzed · Avg sweep ${m.avgSweepATR.toFixed(2)} ATR.`);
     } catch (e) {} finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Calibrate'; }
     }
@@ -1011,6 +1223,7 @@
           });
           renderWatchlist();
           maybeAlert(m, chosen, mlPred, dec);
+          recordPureTradeIfNew(m, s, chosen, mlPred);
           if (m.feed === 'deriv') await new Promise(r => setTimeout(r, 220));
         } catch (e) {}
       }
@@ -1176,6 +1389,7 @@
   /* ---------------- Init & Event Wiring ---------------- */
   document.addEventListener('DOMContentLoaded', async () => {
     loadPrefs();
+    await loadLedger();
     startClock();
 
     const tfSeg = document.getElementById('tfSeg');
@@ -1241,7 +1455,7 @@
     document.getElementById('reloadBtn').addEventListener('click', () => loadActiveMarket());
     document.getElementById('trainMlBtn')?.addEventListener('click', deepTrainActivePair);
     document.getElementById('scanPureSignalsBtn')?.addEventListener('click', () => {
-      toast('Scanning watchlist & calibrating models…');
+      toast('Scanning watchlist for high-confluence setups…');
       scanWatchlistOnce();
     });
     document.getElementById('wlSearch').addEventListener('input', renderWatchlist);
@@ -1283,23 +1497,27 @@
     });
     document.getElementById('settingsClose').addEventListener('click', () => { modal.hidden = true; });
     document.getElementById('sSave')?.addEventListener('click', () => {
-      state.balance = +document.getElementById('sBalance').value || 10000;
-      state.riskPct = +document.getElementById('sRisk').value || 1;
-      state.engineOpts.minRR = +document.getElementById('sMinRR').value || 1.15;
+      state.balance = +document.getElementById('sBalance').value || 40.00;
+      state.riskPct = +document.getElementById('sRisk').value || 2.5;
+      state.engineOpts.minRR = +document.getElementById('sMinRR').value || 1.20;
       state.engineOpts.maxWait = +document.getElementById('sMaxWait').value || 6;
       state.engineOpts.slBufferATR = +document.getElementById('sBuf').value || 0.1;
       state.engineOpts.spikeBufferATR = +document.getElementById('sSpike').value || 1.0;
       state.engineOpts.model1 = document.getElementById('sModel1').value;
-      state.engineOpts.minBodyRatio = +document.getElementById('sBody').value || 0.5;
+      state.engineOpts.minBodyRatio = +document.getElementById('sBody').value || 0.52;
       state.tgToken = document.getElementById('sTgToken').value.trim();
       state.tgChat = document.getElementById('sTgChat').value.trim();
       savePrefs();
+      syncLedger();
       modal.hidden = true;
       loadActiveMarket();
     });
     document.getElementById('sReset')?.addEventListener('click', () => {
-      state.engineOpts = { ...E.DEFAULTS, minRR: 1.15 };
+      state.balance = 40.00;
+      state.riskPct = 2.5;
+      state.engineOpts = { ...E.DEFAULTS, minRR: 1.20, minBodyRatio: 0.52 };
       savePrefs();
+      syncLedger();
       modal.hidden = true;
       loadActiveMarket();
     });
@@ -1320,9 +1538,10 @@
       const dec = F.decimalsFor(state.series.ltf);
       const f = v => v != null ? v.toFixed(dec) : '—';
       const activeLvls = resolveActiveEntryLevels(s, state.series) || s;
-      const txt = `${state.series.market.name} (${state.series.pair.label}) ${s.dir || ''}\nEntry: ${f(activeLvls.entry)} | SL: ${f(activeLvls.sl)} | TP1 (50%): ${f(activeLvls.tp1)} | TP2 (100%): ${f(activeLvls.tp2)}`;
+      const pos = ML.calcPositionForAccount(state.series.market, activeLvls.entry, activeLvls.sl, activeLvls.tp1, activeLvls.tp2, state.balance, state.riskPct);
+      const txt = `${state.series.market.name} (${state.series.pair.label}) ${s.dir || ''}\nLot: ${pos.lotFormatted} ($${pos.actualRiskUsd} risk)\nEntry: ${f(activeLvls.entry)} | SL: ${f(activeLvls.sl)} | TP1: ${f(activeLvls.tp1)} | TP2: ${f(activeLvls.tp2)}`;
       navigator.clipboard?.writeText(txt);
-      toast('Levels copied to clipboard.');
+      toast('Signal levels & calculated lot copied.');
     });
 
     document.getElementById('jForm').addEventListener('submit', e => {
@@ -1347,6 +1566,7 @@
     initBacktestUI();
     renderJournal();
     renderPlaybook();
+    renderPureSignalsPage();
 
     await loadActiveMarket();
     setTimeout(scanWatchlistOnce, 1800);

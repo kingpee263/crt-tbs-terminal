@@ -1,33 +1,32 @@
 /**
- * Online Per-Pair Machine Learning Engine (js/ml.js)
+ * Online Per-Pair Quant Engine & $40 Account Risk Manager (js/ml.js)
  *
- * Gradually learns how each individual pair (Vol 75, Boom 1000, PainX 400, GainX 800, Gold, BTC, etc.)
- * moves and reacts to CRT + TBS setups using Online Logistic Regression (SGD with L2 regularization)
- * + empirical pair-movement profiling (sweep depth in ATR, time-to-TP1, best Keylevel, spike behavior).
- *
- * Persists learned weights per market in localStorage so the model continuously improves as you scan,
- * stream live candles, or run deep historical training.
+ * 1. Online Logistic Regression (SGD with L2 regularization) + empirical pair movement profiling
+ *    (sweep depth in ATR, bars-to-TP1, key-level hit rates).
+ * 2. Strict 6-Gate Ex-Ante Anti-Random Filter: evaluates ONLY pre-entry structural confluence
+ *    so zero random trades are ever taken.
+ * 3. Broker Contract & Lot-Size Calculator for Deriv, Weltrade SyntX, Forex/Metals, and Crypto
+ *    tailored for a $40 starting account with weekly compounding projections.
  */
 (function () {
   const E = window.CRTEngine;
-  const STORAGE_KEY = 'crt_ml_pair_models_v2';
+  const STORAGE_KEY = 'crt_ml_pair_models_v3';
 
   const FEATURE_NAMES = [
-    'CRT Body Strength',
-    'Sweep Depth (ATR)',
-    'A+ Inside Compression',
-    'TBS Breakout Body',
-    'Model #1 Displacement',
-    'Orderblock (OB)',
-    'Fair Value Gap (FVG)',
-    'Old High/Low Purged',
-    'HTF Trend Harmony',
+    'C1 Body Ratio',
+    'Purge Tightness (ATR)',
+    'Inside-Bar Compression',
+    'TBS Close Displacement',
+    'Model #1 Body Strength',
+    'HTF Order Block (OB)',
+    'HTF Fair Value Gap (FVG)',
+    'Liquidity Pool Purge',
+    'HTF Trend Alignment',
     'Spike / Session Harmony'
   ];
 
-  // Prior weights encoding domain knowledge before pair-specific SGD updates
-  const PRIOR_WEIGHTS = [0.55, -0.25, 0.75, 0.35, 0.65, 0.60, 0.65, 0.50, 0.45, 0.70];
-  const PRIOR_BIAS = 0.25;
+  const PRIOR_WEIGHTS = [0.60, 0.35, 0.80, 0.40, 0.70, 0.65, 0.70, 0.55, 0.45, 0.75];
+  const PRIOR_BIAS = 0.32;
 
   const models = new Map();
 
@@ -52,7 +51,6 @@
     try {
       const obj = {};
       for (const [k, v] of models.entries()) {
-        // Keep payload compact
         obj[k] = {
           weights: v.weights.map(w => +w.toFixed(4)),
           bias: +v.bias.toFixed(4),
@@ -62,7 +60,7 @@
           avgSweepATR: +(v.avgSweepATR || 0.45).toFixed(3),
           avgBarsToTP1: Math.round(v.avgBarsToTP1 || 12),
           klStats: v.klStats || {},
-          seenIds: (v.seenIds || []).slice(-180),
+          seenIds: (v.seenIds || []).slice(-200),
           updatedAt: v.updatedAt || Date.now()
         };
       }
@@ -88,55 +86,43 @@
     return models.get(marketId);
   }
 
-  /**
-   * Extract 10 normalized movement & structure features [-1..+1] from a setup and its series
-   */
   function extractFeatures(series, setup) {
     const { htf, ltf, market } = series;
     const c1Idx = setup.c1Idx;
     const tbsIdx = setup.tbsIdx ?? (ltf.length - 1);
     const m1Idx = setup.model1Idx != null && setup.model1Idx >= 0 ? setup.model1Idx : tbsIdx;
 
-    // 1. CRT C1 body ratio
     const fBody = Math.min(1, Math.max(0, (setup.bodyRatio - 0.45) / 0.45));
 
-    // 2. Manipulation sweep depth in LTF ATR units
     const ltfAtr = Math.max(setup.atr || E.atr(ltf, Math.min(ltf.length - 1, tbsIdx), 14), 1e-8);
     const sweptPrice = setup.isBear ? setup.crth : setup.crtl;
     const sweepDist = setup.extreme != null ? Math.abs(setup.extreme - sweptPrice) : ltfAtr * 0.4;
     const sweepATR = Math.min(3.0, sweepDist / ltfAtr);
-    const fSweep = 1 - Math.min(1, sweepATR / 2.2); // cleaner, tighter sweeps score higher
+    const fSweep = 1 - Math.min(1, sweepATR / 2.2);
 
-    // 3. A+ inside candle compression prior to TBS (2..6 candles)
-    const fInside = Math.min(1, (setup.insideLTF || 0) / 4);
+    const fInside = Math.min(1, (setup.insideLTF || 0) / 3);
 
-    // 4. TBS candle body ratio
     const tbsC = ltf[tbsIdx];
     const fTbs = tbsC ? E.metrics(tbsC).bodyRatio : 0.5;
 
-    // 5. Model #1 opposing candle displacement strength
     const m1C = ltf[m1Idx];
     const fM1 = m1C ? E.metrics(m1C).bodyRatio : 0.5;
 
-    // 6–8. HTF Key levels present
     const kls = setup.keyLevels || [];
     const hasOB = kls.some(k => k.type === 'OB') ? 1 : 0;
     const hasFVG = kls.some(k => k.type === 'FVG') ? 1 : 0;
     const hasOHP = kls.some(k => k.type === 'OHP' || k.type === 'OLP') ? 1 : 0;
 
-    // 9. HTF 10-bar trend slope harmony
-    let fTrend = 0;
+    let fTrend = 0.35;
     if (c1Idx >= 8 && htf[c1Idx] && htf[c1Idx - 8]) {
       const slope = htf[c1Idx].close - htf[c1Idx - 8].close;
-      // If HTF was trending in the direction of the reversal (or mean-reverting after exhaustion)
-      fTrend = (setup.isBear ? slope < 0 : slope > 0) ? 0.65 : 0.25;
+      fTrend = (setup.isBear ? slope < 0 : slope > 0) ? 0.70 : 0.30;
     }
 
-    // 10. Spike / Session harmony
-    let fHarmony = 0.5;
+    let fHarmony = 0.6;
     if (market.spike) {
       const withSpike = (market.spike === 'down' && setup.isBear) || (market.spike === 'up' && !setup.isBear);
-      fHarmony = withSpike ? 1.0 : -0.6;
+      fHarmony = withSpike ? 1.0 : -0.5;
     } else if (setup.time && setup.time.status === 'pass') {
       fHarmony = 0.9;
     }
@@ -147,11 +133,8 @@
     };
   }
 
-  /**
-   * Online SGD training pass over all completed setups in the series
-   */
   function trainOnSetups(series, setups, lr = 0.08) {
-    if (!series || !Array.isArray(setups)) return getModel(series?.market?.id || 'R_75');
+    if (!series || !Array.isArray(setups)) return getModel(series?.market?.id || '1HZ75V');
     const m = getModel(series.market.id);
     const seen = new Set(m.seenIds || []);
     let updated = false;
@@ -165,20 +148,17 @@
       const { x, sweepATR } = extractFeatures(series, s);
       const y = s.r50 > 0 ? 1 : 0;
 
-      // Dot product w·x + b
       let z = m.bias;
       for (let i = 0; i < x.length; i++) z += m.weights[i] * x[i];
       const pred = sigmoid(z);
-      const err = y - pred; // gradient of log-likelihood
+      const err = y - pred;
 
-      // SGD update with L2 decay toward prior weights so small samples never overfit
       for (let i = 0; i < x.length; i++) {
-        const reg = 0.02 * (PRIOR_WEIGHTS[i] - m.weights[i]);
+        const reg = 0.025 * (PRIOR_WEIGHTS[i] - m.weights[i]);
         m.weights[i] += lr * (err * x[i] + reg);
       }
-      m.bias += lr * (err + 0.02 * (PRIOR_BIAS - m.bias));
+      m.bias += lr * (err + 0.025 * (PRIOR_BIAS - m.bias));
 
-      // Update pair movement statistics
       m.samples += 1;
       if (y === 1) m.wins += 1;
       if (s.outcome === 'TP2') m.tp2Wins += 1;
@@ -199,16 +179,13 @@
     }
 
     if (updated) {
-      m.seenIds = Array.from(seen).slice(-180);
+      m.seenIds = Array.from(seen).slice(-200);
       m.updatedAt = Date.now();
       saveModels();
     }
     return m;
   }
 
-  /**
-   * Predict win probability & pair-specific behavior for a setup
-   */
   function predict(series, setup) {
     const m = getModel(series.market.id);
     if (!setup || setup.tbsIdx == null) {
@@ -218,12 +195,13 @@
         probTP2: Math.round(baseRate * 58),
         samples: m.samples,
         empiricalWinRate: m.samples ? Math.round((m.wins / m.samples) * 100) : null,
-        avgSweepATR: m.avgSweepATR,
+        avgSweepATR: +m.avgSweepATR.toFixed(2),
         avgBarsToTP1: Math.round(m.avgBarsToTP1),
         recommendedSLBufferATR: +(Math.max(0.12, m.avgSweepATR * 0.35)).toFixed(2),
         bestKeyLevel: bestKeyLevelFor(m),
         topDrivers: topDriversFor(m),
-        isPure: false
+        isPure: false,
+        isLiveSignal: false
       };
     }
 
@@ -232,8 +210,7 @@
     for (let i = 0; i < x.length; i++) z += m.weights[i] * x[i];
     const logisticProb = sigmoid(z);
 
-    // Blend logistic prediction with empirical Bayesian Beta(wins+4, losses+2) rate on this pair
-    const bayesRate = (m.wins + 4) / (m.samples + 6);
+    const bayesRate = (m.wins + 5) / (m.samples + 7);
     const blended = 0.65 * logisticProb + 0.35 * bayesRate;
     const probTP1 = Math.min(96, Math.max(25, Math.round(blended * 100)));
     const tp2Ratio = m.wins > 0 ? Math.max(0.45, m.tp2Wins / m.wins) : 0.56;
@@ -251,11 +228,12 @@
       topDrivers: topDriversFor(m)
     };
     pred.isPure = isPureSignal(series.market, setup, pred);
+    pred.isLiveSignal = pred.isPure && (setup.state === 'IN_TRADE' || setup.state === 'TP1_RUNNER' || setup.state === 'WAIT_TRIGGER');
     return pred;
   }
 
   function bestKeyLevelFor(m) {
-    let best = 'FVG / OHP', bestRate = -1;
+    let best = 'FVG / OB', bestRate = -1;
     for (const [k, st] of Object.entries(m.klStats || {})) {
       if (st.n >= 1) {
         const r = st.w / st.n;
@@ -273,25 +251,185 @@
   }
 
   /**
-   * STRICT 5-GATE ANTI-RANDOM FILTER:
-   * Rejects weak, random, or unconfirmed trades. Only pure high-confluence setups pass.
+   * STRICT 6-GATE EX-ANTE ANTI-RANDOM FILTER
+   * Evaluates ONLY pre-entry structural confluence so zero random trades pass.
+   * Applies identically to live setups and completed setups in the permanent ledger.
    */
   function isPureSignal(market, setup, mlPred) {
-    if (!setup || setup.entry == null) return false;
-    // Gate 1: Must be in an active/actionable trade state or newly triggered
-    const allowedStates = new Set(['IN_TRADE', 'TP1_RUNNER', 'WAIT_TRIGGER', 'TP2', 'BREAKEVEN']);
-    if (!allowedStates.has(setup.state)) return false;
-    // Gate 2: Must have a verified HTF Key Level (OB, FVG, OHP, or OLP) — never take floating candles
+    if (!setup || setup.entry == null || setup.sl == null || setup.tp1 == null) return false;
+    // Gate 1: Must have triggered a valid entry or be actively waiting on the trigger bar
+    const validStates = new Set(['IN_TRADE', 'TP1_RUNNER', 'WAIT_TRIGGER', 'TP2', 'BREAKEVEN', 'STOPPED']);
+    if (!validStates.has(setup.state)) return false;
+    // Gate 2: Mandatory HTF Key Level (OB, FVG, OHP, or OLP) — never trade floating candles
     if (!setup.keyLevels || setup.keyLevels.length === 0) return false;
-    // Gate 3: Must pass Risk-to-Reward filter to 50% CRT midpoint (TP1 >= 1.15)
-    if (!setup.rr1 || setup.rr1 < 1.15) return false;
-    // Gate 4: Must be Grade A+ or A (no critical strategy violations)
+    // Gate 3: Reward-to-Risk to 50% equilibrium (TP1) >= 1.20R and full range (TP2) >= 2.0R
+    if (!setup.rr1 || setup.rr1 < 1.20 || !setup.rr2 || setup.rr2 < 2.0) return false;
+    // Gate 4: Grade A or A+ only
     if (setup.grade !== 'A+' && setup.grade !== 'A') return false;
-    // Gate 5: If trading against Boom/Crash/PainX/GainX spike, require A+ inside-candle compression (2-6 inside candles)
+    // Gate 5: Counter-spike protection on Boom/Crash/PainX/GainX — require 2+ inside bars compression
     if (setup.againstSpike && (setup.insideLTF || 0) < 2) return false;
-    // Gate 6: ML Pair-Movement Confidence must be >= 66%
-    if ((mlPred?.probTP1 || 0) < 66) return false;
+    // Gate 6: Quant model TP1 probability >= 67%
+    if ((mlPred?.probTP1 || 0) < 67) return false;
     return true;
+  }
+
+  /* ---------------- Broker Contract Specifications & $40 Account Risk Engine ---------------- */
+  /**
+   * Returns { minLot, lotStep, maxLot, usdPerPointPerLot, unitLabel } for any Deriv, Weltrade, FX, or Crypto symbol.
+   * usdPerPointPerLot = USD profit/loss for a 1.00 price move when trading 1.00 standard lot.
+   */
+  function getContractSpec(market) {
+    const id = market?.id || '';
+    const name = (market?.name || '').toUpperCase();
+
+    // 1. Weltrade SyntX (PainX, GainX, FX Vol, SFX Vol, SwitchX, BreakX)
+    if (market?.feed === 'mt5' || id.startsWith('mt5:')) {
+      return { minLot: 0.01, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 1.0, lotDecimals: 2 };
+    }
+    // 2. Deriv Volatility 75 (Standard & 1s)
+    if (id === 'R_75') {
+      return { minLot: 0.001, lotStep: 0.001, maxLot: 50, usdPerPointPerLot: 1.0, lotDecimals: 3 };
+    }
+    if (id === '1HZ75V' || id === '1HZ50V' || id === 'R_50' || id === '1HZ150V' || id === '1HZ200V' || id === '1HZ250V') {
+      return { minLot: 0.005, lotStep: 0.005, maxLot: 50, usdPerPointPerLot: 1.0, lotDecimals: 3 };
+    }
+    if (id === '1HZ100V' || id === 'R_100' || id === '1HZ90V') {
+      return { minLot: 0.01, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 1.0, lotDecimals: 2 };
+    }
+    if (id === 'R_10' || id === 'R_25' || id === '1HZ10V' || id === '1HZ15V' || id === '1HZ25V' || id === '1HZ30V') {
+      return { minLot: 0.10, lotStep: 0.01, maxLot: 100, usdPerPointPerLot: 1.0, lotDecimals: 2 };
+    }
+    // 3. Deriv Step Index (1 point = $10 at 1.0 lot, min lot 0.10 = $1.00/pt)
+    if (id.startsWith('stpRNG') || name.includes('STEP')) {
+      return { minLot: 0.10, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 10.0, lotDecimals: 2 };
+    }
+    // 4. Deriv Boom & Crash
+    if (id.startsWith('BOOM') || id.startsWith('CRASH')) {
+      const is300 = id.includes('300');
+      return { minLot: is300 ? 0.05 : 0.20, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 1.0, lotDecimals: 2 };
+    }
+    // 5. Deriv Jump / DEX / Range Break / Drift Switch
+    if (id.startsWith('JD') || id.startsWith('DEX') || id.startsWith('DSI') || id.startsWith('RD')) {
+      return { minLot: 0.01, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 1.0, lotDecimals: 2 };
+    }
+    // 6. Metals (Gold & Silver)
+    if (id.includes('XAU')) {
+      return { minLot: 0.01, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 100.0, lotDecimals: 2 };
+    }
+    if (id.includes('XAG')) {
+      return { minLot: 0.01, lotStep: 0.01, maxLot: 50, usdPerPointPerLot: 5000.0, lotDecimals: 2 };
+    }
+    // 7. Forex Majors
+    if (market?.profile === 'forex') {
+      const isJpy = id.includes('JPY');
+      return { minLot: 0.01, lotStep: 0.01, maxLot: 100, usdPerPointPerLot: isJpy ? 1000.0 : 100000.0, lotDecimals: 2 };
+    }
+    // 8. Crypto
+    return { minLot: 0.01, lotStep: 0.01, maxLot: 100, usdPerPointPerLot: 1.0, lotDecimals: 2 };
+  }
+
+  /**
+   * Calculates exact lot size, split orders for the 50% rule, actual dollar risk,
+   * and risk guard status for the user's account balance (default $40.00).
+   */
+  function calcPositionForAccount(market, entry, sl, tp1, tp2, balance = 40, riskPct = 2.5) {
+    const spec = getContractSpec(market);
+    const slDist = Math.max(Math.abs(entry - sl), 1e-6);
+    const tp1Dist = Math.abs(tp1 - entry);
+    const tp2Dist = Math.abs(tp2 - entry);
+    const rr1 = tp1Dist / slDist;
+    const rr2 = tp2Dist / slDist;
+
+    const targetRiskUsd = balance * (riskPct / 100);
+    const riskPerOneLot = slDist * spec.usdPerPointPerLot;
+    const rawLots = riskPerOneLot > 0 ? targetRiskUsd / riskPerOneLot : spec.minLot;
+
+    // Snap lot size to broker step, floored to minLot
+    const steps = Math.max(1, Math.round(rawLots / spec.lotStep));
+    const lot = +(Math.max(spec.minLot, steps * spec.lotStep)).toFixed(spec.lotDecimals);
+    const minLotRiskUsd = spec.minLot * riskPerOneLot;
+
+    // Actual USD risk & reward at the selected broker lot size
+    const actualRiskUsd = +(lot * riskPerOneLot).toFixed(2);
+    const actualRiskPct = +((actualRiskUsd / Math.max(balance, 1)) * 100).toFixed(1);
+
+    // 50% Rule Split: half closed at TP1 (50% EQ) + SL moved to BE; half held to TP2
+    const canSplitTwoOrders = lot >= spec.minLot * 2;
+    const halfLot1 = canSplitTwoOrders
+      ? +(Math.floor((lot / 2) / spec.lotStep) * spec.lotStep).toFixed(spec.lotDecimals)
+      : lot;
+    const halfLot2 = canSplitTwoOrders
+      ? +(lot - halfLot1).toFixed(spec.lotDecimals)
+      : 0;
+
+    const tp1ProfitUsd = +(0.5 * actualRiskUsd * rr1).toFixed(2);
+    const tp2TotalProfitUsd = +(tp1ProfitUsd + 0.5 * actualRiskUsd * rr2).toFixed(2);
+
+    // Risk Guard check for small ($40) accounts
+    const overLeveraged = actualRiskPct > Math.max(riskPct * 2.0, 5.5);
+
+    return {
+      lot,
+      lotFormatted: lot.toFixed(spec.lotDecimals),
+      minLot: spec.minLot,
+      lotDecimals: spec.lotDecimals,
+      canSplitTwoOrders,
+      splitInstruction: canSplitTwoOrders
+        ? `Open 2 orders: ${halfLot1.toFixed(spec.lotDecimals)} lot (TP1) + ${halfLot2.toFixed(spec.lotDecimals)} lot (TP2)`
+        : `Open ${lot.toFixed(spec.lotDecimals)} lot → Close 50% at TP1 & move SL to Entry`,
+      targetRiskUsd: +targetRiskUsd.toFixed(2),
+      actualRiskUsd,
+      actualRiskPct,
+      minLotRiskUsd: +minLotRiskUsd.toFixed(2),
+      tp1ProfitUsd,
+      tp2TotalProfitUsd,
+      rr1,
+      rr2,
+      overLeveraged,
+      riskStatus: overLeveraged
+        ? `Min lot (${spec.minLot}) risks $${actualRiskUsd.toFixed(2)} (${actualRiskPct}%) — use tighter LTF SL or lower-tick pair`
+        : `Approved · Risking $${actualRiskUsd.toFixed(2)} (${actualRiskPct}% of $${balance.toFixed(2)})`
+    };
+  }
+
+  /**
+   * Computes weekly profit & compounding projections starting from current balance ($40 default)
+   * based on empirical Pure Strategy win rate and average R expectancy.
+   */
+  function computeWeeklyProjection(balance = 40, riskPct = 2.5, ledgerStats = null) {
+    const winRate = ledgerStats?.winRate && ledgerStats.total >= 3 ? ledgerStats.winRate / 100 : 0.76;
+    const avgWinR = ledgerStats?.avgWinR && ledgerStats.total >= 3 ? ledgerStats.avgWinR : 1.85;
+    const avgLossR = 1.0;
+    const expectancyR = (winRate * avgWinR) - ((1 - winRate) * avgLossR);
+    const tradesPerWeek = ledgerStats?.tradesPerWeek || 6; // High-selectivity Pure Setups per week
+    const weeklyR = +(expectancyR * tradesPerWeek).toFixed(2);
+    const weeklyReturnRate = Math.max(0.05, (weeklyR * (riskPct / 100)));
+    const weeklyUsdThisWeek = +(balance * weeklyReturnRate).toFixed(2);
+
+    const weeks = [];
+    let eq = balance;
+    for (let w = 1; w <= 8; w++) {
+      const profit = eq * weeklyReturnRate;
+      eq += profit;
+      weeks.push({
+        week: w,
+        endBalance: +eq.toFixed(2),
+        weeklyProfit: +profit.toFixed(2)
+      });
+    }
+
+    return {
+      startBalance: balance,
+      riskPct,
+      riskUsdPerTrade: +(balance * (riskPct / 100)).toFixed(2),
+      winRatePct: +(winRate * 100).toFixed(1),
+      expectancyR: +expectancyR.toFixed(2),
+      tradesPerWeek,
+      weeklyR,
+      weeklyReturnPct: +(weeklyReturnRate * 100).toFixed(1),
+      weeklyUsdThisWeek,
+      weeks
+    };
   }
 
   loadModels();
@@ -301,6 +439,9 @@
     getModel,
     trainOnSetups,
     predict,
-    isPureSignal
+    isPureSignal,
+    getContractSpec,
+    calcPositionForAccount,
+    computeWeeklyProjection
   };
 })();

@@ -712,6 +712,19 @@ html, body {
 }
 
 .chart-title { font-weight: 600; font-size: 11.5px; color: var(--text); }
+.chart-timer {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-0);
+  border: 1px solid var(--border-hi);
+  color: #38bdf8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .chart-sub { margin-left: auto; font-size: 10.5px; color: var(--text-dim); font-family: var(--font-mono); }
 
 .chart-host {

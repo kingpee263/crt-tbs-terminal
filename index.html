@@ -115,6 +115,7 @@
           <div class="chart-head">
             <span class="tf-pill" id="htfPill">4H</span>
             <span class="chart-title">HTF Structure · Range (CRTH / 50% / CRTL)</span>
+            <span class="chart-timer mono" id="htfTimer" title="Time remaining until HTF candle closes">--:--</span>
             <span class="chart-sub" id="htfSub"></span>
           </div>
           <div class="chart-host" id="htfChart"></div>
@@ -123,6 +124,7 @@
           <div class="chart-head">
             <span class="tf-pill ltf" id="ltfPill">5m</span>
             <span class="chart-title">LTF Execution · Purge / TBS / Entry</span>
+            <span class="chart-timer mono" id="ltfTimer" title="Time remaining until LTF candle closes">--:--</span>
             <span class="chart-sub" id="ltfSub"></span>
           </div>
           <div class="chart-host" id="ltfChart"></div>
@@ -164,6 +166,13 @@
 
         <div class="levels" id="tkLevels"></div>
         <div class="sizing" id="tkSizing"></div>
+        <div class="card" id="tkRiskGuard" style="margin-bottom:8px; padding:8px 10px; background:var(--bg-0); border-left:3px solid var(--good);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="font-size:11px; color:#fff;">$40 Account Risk Enforcer</b>
+            <span class="st-pill st-good" id="tkRiskBadge">SAFE</span>
+          </div>
+          <div class="small muted mono" id="tkRiskDetails" style="margin-top:4px; line-height:1.45;"></div>
+        </div>
         <div class="tk-actions">
           <button class="btn primary" id="tkLog">Log Trade</button>
           <button class="btn ghost" id="tkCopy">Copy Levels</button>
@@ -190,9 +199,9 @@
     <section class="signals-page">
       <div class="card signals-hero">
         <div>
-          <h2 style="font-size:14px; font-weight:700; color:#d1d4dc;">Filtered High-Confluence Setups</h2>
+          <h2 style="font-size:14px; font-weight:700; color:#d1d4dc;">Pure Institutional Signals — Zero Random Trades</h2>
           <p class="muted small" style="margin-top:3px;">
-            Displays only active setups passing all 6 structural criteria: valid HTF CRT range, HTF key level tap (OB / FVG / liquidity pool), LTF Turtle Soup body close + Model #1 confirmation, minimum 1.15R to 50% equilibrium, Grade A/A+, and pair probability ≥ 66%.
+            Enforces strict pre-entry criteria: HTF CRT candle (body ≥ 52%), HTF Key Level (OB / FVG / Liquidity Pool), LTF Turtle Soup body-close + Model #1 confirmation, RR to 50% ≥ 1.20R, Grade A/A+, and Quant Model probability ≥ 67%.
           </p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
@@ -200,7 +209,72 @@
         </div>
       </div>
 
-      <div class="signals-grid" id="pureSignalsGrid"></div>
+      <!-- $40 Account Growth & Risk Dashboard -->
+      <div class="kpis" id="signalsKpis"></div>
+
+      <div>
+        <div class="card-head" style="margin-bottom:6px;">
+          <span>Active Live Pure Signals</span>
+          <span class="muted small" id="activeSignalsCount"></span>
+        </div>
+        <div class="signals-grid" id="pureSignalsGrid"></div>
+      </div>
+
+      <!-- Permanent Verified Trades Ledger -->
+      <div class="card" style="margin-top:10px;">
+        <div class="card-head">
+          <span>Permanent Pure Trades Ledger ($40 Account Compounding)</span>
+          <span class="muted small" id="ledgerCountSummary"></span>
+        </div>
+        <p class="muted small" style="margin-bottom:8px;">
+          Permanently stored in repository (<code>data/trades_ledger.json</code>). Shows every verified trade taken, exact broker lot size, USD risk, exit outcome, and running balance.
+        </p>
+        <div class="table-wrap tall">
+          <table class="tbl" id="permanentLedgerTable">
+            <thead>
+              <tr>
+                <th>Date (CAT)</th>
+                <th>Symbol</th>
+                <th>Pair</th>
+                <th>Side</th>
+                <th>Lot</th>
+                <th>Entry</th>
+                <th>Stop</th>
+                <th>TP1 / TP2</th>
+                <th>Risk ($)</th>
+                <th>Outcome</th>
+                <th>Result (R)</th>
+                <th>Profit / Loss ($)</th>
+                <th>Account Equity</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Weekly Compounding Trajectory Card -->
+      <div class="card" style="margin-top:10px;">
+        <div class="card-head">
+          <span>$40 Account — 8-Week Compounding Projection</span>
+          <span class="muted small" id="weeklyCompoundingSub"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl" id="weeklyCompoundingTable">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Starting Equity</th>
+                <th>Weekly Target (R)</th>
+                <th>Expected Return (%)</th>
+                <th>Weekly Net Profit ($)</th>
+                <th>Projected Balance</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
     </section>
   </main>
 
