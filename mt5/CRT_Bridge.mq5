@@ -7,7 +7,7 @@
 #property strict
 
 input string InpServerUrl = "http://localhost:8090/api/mt5/push"; // Local CRT Terminal URL (leave as default)
-input string InpSymbols   = "Volatility 75 Index,Volatility 75 (1s) Index,Volatility 100 Index,Volatility 100 (1s) Index,Volatility 50 Index,Volatility 50 (1s) Index,Volatility 25 Index,Volatility 10 Index,Boom 1000 Index,Crash 1000 Index,Boom 500 Index,Crash 500 Index,Boom 300 Index,Crash 300 Index,Step Index,Jump 75 Index,PainX 400,GainX 400,EURUSD,GBPUSD,USDJPY,XAUUSD"; // Comma-separated symbols
+input string InpSymbols   = "Volatility 15 (1s) Index,Volatility 75 Index,Volatility 75 (1s) Index,Volatility 100 Index,Volatility 100 (1s) Index,Volatility 50 Index,Volatility 50 (1s) Index,Volatility 25 Index,Volatility 25 (1s) Index,Volatility 30 (1s) Index,Volatility 90 (1s) Index,Volatility 150 (1s) Index,Volatility 200 (1s) Index,Volatility 250 (1s) Index,Volatility 10 Index,Volatility 10 (1s) Index,Boom 1000 Index,Crash 1000 Index,Boom 900 Index,Crash 900 Index,Boom 600 Index,Crash 600 Index,Boom 500 Index,Crash 500 Index,Boom 300 Index,Crash 300 Index,Step Index,Jump 75 Index,PainX 400,GainX 400,EURUSD,GBPUSD,USDJPY,XAUUSD"; // Comma-separated symbols
 input int    InpFullBars  = 600; // Historical bars on initial sync (500-1000)
 
 bool g_initialSent = false;
