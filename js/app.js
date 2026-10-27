@@ -353,26 +353,11 @@
     let label = '';
     let source = '';
 
-    if (market.feed === 'deriv') {
-      source = 'DERIV PORT 8443';
-      label = `Deriv Real-Time Engine · ${market.name}`;
-      url = `https://charts.deriv.com:8443/deriv?instrument=${encodeURIComponent(market.id)}&theme=dark`;
-      link = `https://charts.deriv.com:8443/deriv?instrument=${encodeURIComponent(market.id)}`;
-      if (hint) hint.textContent = `Direct feed: charts.deriv.com:8443`;
-    } else if (market.feed === 'mt5' || (market.category && market.category.toLowerCase().includes('weltrade'))) {
-      source = 'WELTRADE SYNTX';
-      label = `Weltrade Official SyntX Engine · ${market.name}`;
-      url = `https://weltradecharts.com/chart?lang=en&theme=dark`;
-      link = `https://www.weltrade.com/tools/charts/`;
-      if (hint) hint.textContent = `Direct feed: weltradecharts.com`;
-    } else {
-      source = 'TRADINGVIEW LIVE';
-      label = `TradingView Live Institutional Chart · ${market.name}`;
-      const tvSym = market.id.includes('BTC') ? 'BINANCE:BTCUSDT' : (market.id.includes('XAU') ? 'OANDA:XAUUSD' : market.id);
-      url = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(tvSym)}&interval=5&theme=dark&style=1&timezone=Etc%2FUTC`;
-      link = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSym)}`;
-      if (hint) hint.textContent = `Direct feed: tradingview.com`;
-    }
+    source = 'DERIV OFFICIAL';
+    label = `Deriv Real-Time Broker Chart · ${market.name}`;
+    url = `https://charts.deriv.com:8443/deriv?instrument=${encodeURIComponent(market.id)}&theme=dark`;
+    link = `https://charts.deriv.com:8443/deriv?instrument=${encodeURIComponent(market.id)}`;
+    if (hint) hint.textContent = `Direct feed: charts.deriv.com:8443 (${market.name})`;
 
     if (title) title.textContent = label;
     if (pill) pill.textContent = source;

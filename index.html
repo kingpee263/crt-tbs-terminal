@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=2.3" />
+  <link rel="stylesheet" href="css/app.css?v=2.4" />
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -75,15 +75,14 @@
   <main class="view active" id="view-terminal">
     <aside class="watchlist">
       <div class="wl-head">
-        <input type="search" id="wlSearch" placeholder="Filter symbol (e.g. V75, PainX, XAU)…" />
+        <input type="search" id="wlSearch" placeholder="Filter Deriv symbol (e.g. V75, 1HZ15V, Boom, Gold)…" />
         <div class="wl-cats" id="wlCats">
-          <button data-cat="all" class="active">All</button>
+          <button data-cat="all" class="active">All Deriv</button>
           <button data-cat="deriv_vol">Volatility</button>
           <button data-cat="deriv_boom">Boom / Crash</button>
-          <button data-cat="deriv_other">Step / Jump</button>
-          <button data-cat="weltrade">Weltrade</button>
-          <button data-cat="forex">FX / Metals</button>
-          <button data-cat="crypto">Crypto</button>
+          <button data-cat="deriv_step">Step / Jump</button>
+          <button data-cat="deriv_dex">DEX / Drift</button>
+          <button data-cat="forex">FX &amp; Metals</button>
         </div>
         <label class="tog small" style="margin-top:4px;">
           <input type="checkbox" id="wlActiveOnly" /> Active setups only
@@ -463,12 +462,12 @@
 
   <div class="toasts" id="toasts"></div>
 
-  <script src="js/time.js?v=2.3"></script>
-  <script src="js/feeds.js?v=2.3"></script>
-  <script src="js/engine.js?v=2.3"></script>
-  <script src="js/ml.js?v=2.3"></script>
-  <script src="js/backtest.js?v=2.3"></script>
-  <script src="js/chart.js?v=2.3"></script>
-  <script src="js/app.js?v=2.3"></script>
+  <script src="js/time.js?v=2.4"></script>
+  <script src="js/feeds.js?v=2.4"></script>
+  <script src="js/engine.js?v=2.4"></script>
+  <script src="js/ml.js?v=2.4"></script>
+  <script src="js/backtest.js?v=2.4"></script>
+  <script src="js/chart.js?v=2.4"></script>
+  <script src="js/app.js?v=2.4"></script>
 </body>
 </html>

@@ -40,67 +40,38 @@
     { id: 'CRASH900', name: 'Crash 900 Index', group: 'Deriv Boom & Crash', cat: 'deriv_boom', feed: 'deriv', profile: 'synthetic', spike: 'down' },
     { id: 'CRASH1000', name: 'Crash 1000 Index', group: 'Deriv Boom & Crash', cat: 'deriv_boom', feed: 'deriv', profile: 'synthetic', spike: 'down' },
 
-    // 3. Deriv Jump, Step, Range Break, DEX & Drift Switch
-    { id: 'stpRNG', name: 'Step Index 100', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'stpRNG2', name: 'Step Index 200', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'stpRNG3', name: 'Step Index 300', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'stpRNG4', name: 'Step Index 400', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'stpRNG5', name: 'Step Index 500', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'JD10', name: 'Jump 10 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'JD25', name: 'Jump 25 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'JD50', name: 'Jump 50 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'JD75', name: 'Jump 75 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'JD100', name: 'Jump 100 Index', group: 'Deriv Step & Jump', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'RDBULL', name: 'Bull Market Index', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'RDBEAR', name: 'Bear Market Index', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'DEX600UP', name: 'DEX 600 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX600DN', name: 'DEX 600 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
-    { id: 'DEX900UP', name: 'DEX 900 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX900DN', name: 'DEX 900 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
-    { id: 'DEX1500UP', name: 'DEX 1500 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'up' },
-    { id: 'DEX1500DN', name: 'DEX 1500 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic', spike: 'down' },
-    { id: 'DSI10', name: 'Drift Switch 10', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'DSI20', name: 'Drift Switch 20', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
-    { id: 'DSI30', name: 'Drift Switch 30', group: 'Deriv Daily Reset & DEX', cat: 'deriv_other', feed: 'deriv', profile: 'synthetic' },
+    // 3. Deriv Step & Jump Indices
+    { id: 'stpRNG', name: 'Step Index 100', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'stpRNG2', name: 'Step Index 200', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'stpRNG3', name: 'Step Index 300', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'stpRNG4', name: 'Step Index 400', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'stpRNG5', name: 'Step Index 500', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'JD10', name: 'Jump 10 Index', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'JD25', name: 'Jump 25 Index', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'JD50', name: 'Jump 50 Index', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'JD75', name: 'Jump 75 Index', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
+    { id: 'JD100', name: 'Jump 100 Index', group: 'Deriv Step & Jump', cat: 'deriv_step', feed: 'deriv', profile: 'synthetic' },
 
-    // 4. Weltrade SyntX — PainX & GainX (Live MT5 Bridge + Real Live Tick Proxy when remote)
-    { id: 'mt5:PainX 400', name: 'PainX 400', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 400', proxySymbol: 'CRASH300N', profile: 'synthetic', spike: 'down' },
-    { id: 'mt5:PainX 600', name: 'PainX 600', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 600', proxySymbol: 'CRASH500', profile: 'synthetic', spike: 'down' },
-    { id: 'mt5:PainX 800', name: 'PainX 800', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 800', proxySymbol: 'CRASH600', profile: 'synthetic', spike: 'down' },
-    { id: 'mt5:PainX 999', name: 'PainX 999', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 999', proxySymbol: 'CRASH900', profile: 'synthetic', spike: 'down' },
-    { id: 'mt5:PainX 1200', name: 'PainX 1200', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'PainX 1200', proxySymbol: 'CRASH1000', profile: 'synthetic', spike: 'down' },
-    { id: 'mt5:GainX 400', name: 'GainX 400', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 400', proxySymbol: 'BOOM300N', profile: 'synthetic', spike: 'up' },
-    { id: 'mt5:GainX 600', name: 'GainX 600', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 600', proxySymbol: 'BOOM500', profile: 'synthetic', spike: 'up' },
-    { id: 'mt5:GainX 800', name: 'GainX 800', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 800', proxySymbol: 'BOOM600', profile: 'synthetic', spike: 'up' },
-    { id: 'mt5:GainX 999', name: 'GainX 999', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 999', proxySymbol: 'BOOM900', profile: 'synthetic', spike: 'up' },
-    { id: 'mt5:GainX 1200', name: 'GainX 1200', group: 'Weltrade SyntX · PainX/GainX', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'GainX 1200', proxySymbol: 'BOOM1000', profile: 'synthetic', spike: 'up' },
+    // 4. Deriv DEX, Drift Switch & Daily Reset Indices
+    { id: 'RDBULL', name: 'Bull Market Index', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic' },
+    { id: 'RDBEAR', name: 'Bear Market Index', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic' },
+    { id: 'DEX600UP', name: 'DEX 600 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic', spike: 'up' },
+    { id: 'DEX600DN', name: 'DEX 600 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic', spike: 'down' },
+    { id: 'DEX900UP', name: 'DEX 900 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic', spike: 'up' },
+    { id: 'DEX900DN', name: 'DEX 900 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic', spike: 'down' },
+    { id: 'DEX1500UP', name: 'DEX 1500 UP', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic', spike: 'up' },
+    { id: 'DEX1500DN', name: 'DEX 1500 DOWN', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic', spike: 'down' },
+    { id: 'DSI10', name: 'Drift Switch 10', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic' },
+    { id: 'DSI20', name: 'Drift Switch 20', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic' },
+    { id: 'DSI30', name: 'Drift Switch 30', group: 'Deriv Daily Reset & DEX', cat: 'deriv_dex', feed: 'deriv', profile: 'synthetic' },
 
-    // 5. Weltrade SyntX — FX Vol, SFX Vol, SwitchX, BreakX
-    { id: 'mt5:FX Vol 20', name: 'FX Vol 20', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 20', proxySymbol: 'R_10', profile: 'synthetic' },
-    { id: 'mt5:FX Vol 40', name: 'FX Vol 40', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 40', proxySymbol: 'R_25', profile: 'synthetic' },
-    { id: 'mt5:FX Vol 60', name: 'FX Vol 60', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 60', proxySymbol: 'R_50', profile: 'synthetic' },
-    { id: 'mt5:FX Vol 80', name: 'FX Vol 80', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 80', proxySymbol: 'R_75', profile: 'synthetic' },
-    { id: 'mt5:FX Vol 99', name: 'FX Vol 99', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'FX Vol 99', proxySymbol: 'R_100', profile: 'synthetic' },
-    { id: 'mt5:SFX Vol 20', name: 'SFX Vol 20', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 20', proxySymbol: '1HZ10V', profile: 'synthetic' },
-    { id: 'mt5:SFX Vol 40', name: 'SFX Vol 40', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 40', proxySymbol: '1HZ25V', profile: 'synthetic' },
-    { id: 'mt5:SFX Vol 60', name: 'SFX Vol 60', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 60', proxySymbol: '1HZ50V', profile: 'synthetic' },
-    { id: 'mt5:SFX Vol 80', name: 'SFX Vol 80', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 80', proxySymbol: '1HZ75V', profile: 'synthetic' },
-    { id: 'mt5:SFX Vol 99', name: 'SFX Vol 99', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SFX Vol 99', proxySymbol: '1HZ100V', profile: 'synthetic' },
-    { id: 'mt5:SwitchX 600', name: 'SwitchX 600', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'SwitchX 600', proxySymbol: 'DSI20', profile: 'synthetic' },
-    { id: 'mt5:BreakX 600', name: 'BreakX 600', group: 'Weltrade SyntX · FX & SFX Vol', cat: 'weltrade', feed: 'mt5', mt5Symbol: 'BreakX 600', proxySymbol: 'RDBULL', profile: 'synthetic' },
-
-    // 6. Real Forex & Metals via Deriv
+    // 5. Real Forex & Metals via Deriv
     { id: 'frxXAUUSD', name: 'XAU/USD (Gold)', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxXAGUSD', smtRel: 'positive' },
     { id: 'frxXAGUSD', name: 'XAG/USD (Silver)', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxXAUUSD', smtRel: 'positive' },
     { id: 'frxEURUSD', name: 'EUR/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxGBPUSD', smtRel: 'positive' },
     { id: 'frxGBPUSD', name: 'GBP/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex', smt: 'frxEURUSD', smtRel: 'positive' },
     { id: 'frxUSDJPY', name: 'USD/JPY', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex' },
-    { id: 'frxAUDUSD', name: 'AUD/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex' },
-
-    // 7. Crypto via Binance
-    { id: 'BTCUSDT', name: 'BTC/USDT', group: 'Crypto (Binance)', cat: 'crypto', feed: 'binance', profile: 'crypto', smt: 'ETHUSDT', smtRel: 'positive' },
-    { id: 'ETHUSDT', name: 'ETH/USDT', group: 'Crypto (Binance)', cat: 'crypto', feed: 'binance', profile: 'crypto', smt: 'BTCUSDT', smtRel: 'positive' },
-    { id: 'SOLUSDT', name: 'SOL/USDT', group: 'Crypto (Binance)', cat: 'crypto', feed: 'binance', profile: 'crypto', smt: 'ETHUSDT', smtRel: 'positive' }
+    { id: 'frxAUDUSD', name: 'AUD/USD', group: 'Forex & Metals', cat: 'forex', feed: 'deriv', profile: 'forex' }
   ];
 
   const markets = new Map(STATIC_MARKETS.map(m => [m.id, m]));
